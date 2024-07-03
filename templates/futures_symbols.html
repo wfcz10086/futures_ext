@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>永续队列管理</h1>
+
+<h2>已保存的期货币种:</h2>
+{% if saved_symbols %}
+<ul>
+    {% for symbol in saved_symbols %}
+    <li>
+        {{ symbol.symbol }}
+        <button class="btn btn-danger btn-sm delete-symbol" data-symbol="{{ symbol.symbol }}">删除</button>
+    </li>
+    {% endfor %}
+</ul>
+
+<nav aria-label="Page navigation">
+    <ul class="pagination">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('get_futures_symbols.futures_symbols', page=pagination.prev_num) }}">上一页</a></li>
+        {% else %}
+        <li class="page-item disabled"><a class="page-link" href="#">上一页</a></li>
+        {% endif %}
+        
+        {% for page in pagination.iter_pages() %}
+            {% if page %}
+                {% if page != pagination.page %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('get_futures_symbols.futures_symbols', page=page) }}">{{ page }}</a></li>
+                {% else %}
+                <li class="page-item active"><a class="page-link" href="#">{{ page }}</a></li>
+                {% endif %}
+            {% else %}
+                <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('get_futures_symbols.futures_symbols', page=pagination.next_num) }}">下一页</a></li>
+        {% else %}
+        <li class="page-item disabled"><a class="page-link" href="#">下一页</a></li>
+        {% endif %}
+    </ul>
+</nav>
+
+{% else %}
+<p>您还没有保存任何永续合约期货币种。</p>
+{% endif %}
+
+<hr>
+
+<h2>获取期货币种:</h2>
+<form id="futures-symbols-form">
+    <div class="form-group">
+        <label for="binance-key">选择Binance API密钥:</label>
+        <select class="form-control" id="binance-key" name="binance_key">
+            {% for key in binance_keys %}
+            <option value="{{ key.id }}">{{ key.comment or key.api_key }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">获取并更新期货币种</button>
+</form>
+
+<div id="result"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#futures-symbols-form').submit(function(event) {
+        event.preventDefault();
+        $.ajax({
+            url: "{{ url_for('get_futures_symbols.get_futures_symbols') }}",
+            method: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    $('#result').html('<div class="alert alert-success">期货币种已更新。</div>');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    $('#result').html('<div class="alert alert-danger">更新期货币种时出错:' + response.error + '</div>');
+                }
+            }
+        });
+    });
+
+    $('.delete-symbol').click(function() {
+        var symbol = $(this).data('symbol');
+        $.ajax({
+            url: "{{ url_for('get_futures_symbols.delete_futures_symbol') }}",  
+            method: 'POST',
+            data: {symbol: symbol},
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('删除期货币种时出错:' + response.error);
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

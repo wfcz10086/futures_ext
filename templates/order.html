@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>订单管理 - {{ symbol }}</h1>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <h2>当前价格: <span id="current-price">{{ "%.4f"|format(current_price) }}</span></h2>
+            <h3>账户余额: {{ "%.2f"|format(usdt_balance) }} USDT</h3>
+            <h3>合约大小: {{ "%.4f"|format(price_per_contract) }} USDT</h3>
+            <h3>当前资金费率: {{ "%.4f"|format(funding_rate * 100) }}%</h3>
+        </div>
+        <div class="col-md-6">
+            <h2>价格变化:</h2>
+            <ul class="list-group">
+                {% for interval, change in price_changes.items() %}
+                <li class="list-group-item">{{ interval }}: {{ change }}%</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h2>杠杆选择:</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>杠杆</th>
+                        <th>最大可下单量</th>
+                        <th>做多强平价格</th>
+                        <th>做空强平价格</th>
+                        <th>总持仓额度</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leverage in range(1, 11) %}
+                    <tr>
+                        <td>{{ leverage }}x</td>
+                        <td>{{ "%.3f"|format(max_qty_dict[leverage|string]) }}</td>
+                        <td>{{ "%.4f"|format(long_liquidation_price_dict[leverage|string]) }}</td>
+                        <td>{{ "%.4f"|format(short_liquidation_price_dict[leverage|string]) }}</td>
+                        <td>{{ "%.2f"|format(total_position_dict[leverage|string]) }} USDT</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h2>下单</h2>
+            <form action="{{ url_for('order_management.place_order', symbol=symbol) }}" method="POST">
+                <div class="form-group">
+                    <label for="leverage">选择杠杆倍数:</label>
+                    <select class="form-control" id="leverage" name="leverage" required>
+                        {% for leverage in range(1, 11) %}
+                        <option value="{{ leverage }}" {% if leverage == 5 %}selected{% endif %}>{{ leverage }}x</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>交易方向:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="direction" id="long" value="long" required>
+                        <label class="form-check-label" for="long">做多</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="direction" id="short" value="short" required>
+                        <label class="form-check-label" for="short">做空</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>订单类型:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="order_type" id="market" value="market" required>
+                        <label class="form-check-label" for="market">市价单</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="order_type" id="limit" value="limit" required>
+                        <label class="form-check-label" for="limit">限价单</label>
+                    </div>
+                </div>
+                <div class="form-group" id="limit-price-group" style="display: none;">
+                    <label for="limit_price">限价:</label>
+                    <input type="number" class="form-control" id="limit_price" name="limit_price" step="0.0001" value="{{ "%.4f"|format(current_price) }}">
+                </div>
+                <div class="form-group">
+                    <label for="quantity">数量:</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" required step="0.001">
+                </div>
+                <div class="form-group">
+                    <label for="take_profit">止盈价格:</label>
+                    <input type="number" class="form-control" id="take_profit" name="take_profit" step="0.0001" value="{{ "%.4f"|format(current_price * 1.3) }}">
+                </div>
+                <div class="form-group">
+                    <label for="stop_loss">止损价格:</label>
+                    <input type="number" class="form-control" id="stop_loss" name="stop_loss" step="0.0001" value="{{ "%.4f"|format(current_price * 0.7) }}">
+                </div>
+<div id="order-info" class="alert alert-info" style="display: none;">
+    <p>下单额度: <span id="order-value"></span> USDT</p>
+    <p>总合约额度: <span id="total-contract-value"></span> USDT</p>
+    <p>预估手续费: <span id="estimated-fee"></span> USDT</p>
+</div>
+
+                <button type="submit" class="btn btn-primary">下单</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const orderTypeRadios = document.querySelectorAll('input[name="order_type"]');
+        const limitPriceGroup = document.getElementById('limit-price-group');
+        const currentPriceElement = document.getElementById('current-price');
+        const takeProfitInput = document.getElementById('take_profit');
+        const stopLossInput = document.getElementById('stop_loss');
+        const directionRadios = document.querySelectorAll('input[name="direction"]');
+        const limitPriceInput = document.getElementById('limit_price');
+        const quantityInput = document.getElementById('quantity');
+        const orderInfo = document.getElementById('order-info');
+        const orderValueSpan = document.getElementById('order-value');
+        const totalContractValueSpan = document.getElementById('total-contract-value');
+        const estimatedFeeSpan = document.getElementById('estimated-fee');
+        const leverageSelect = document.getElementById('leverage');
+        const notionalValueSpan = document.createElement('span'); // 新增：名义价值显示元素
+        orderInfo.appendChild(notionalValueSpan); // 将名义价值显示添加到订单信息中
+
+        const currentPrice = currentPriceElement ? parseFloat(currentPriceElement.textContent) : 0;
+
+        if (orderTypeRadios) {
+            orderTypeRadios.forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    if (limitPriceGroup) {
+                        limitPriceGroup.style.display = this.value === 'limit' ? 'block' : 'none';
+                    }
+                    updatePrices();
+                });
+            });
+        }
+
+        function updatePrices() {
+            const direction = document.querySelector('input[name="direction"]:checked');
+            const price = limitPriceInput && !isNaN(parseFloat(limitPriceInput.value)) 
+                ? parseFloat(limitPriceInput.value) 
+                : currentPrice;
+
+            if (!takeProfitInput || !stopLossInput) return;
+
+            if (direction && direction.value === 'long') {
+                takeProfitInput.value = (price * 1.03).toFixed(4);
+                stopLossInput.value = (price * 0.97).toFixed(4);
+            } else {
+                takeProfitInput.value = (price * 0.97).toFixed(4);
+                stopLossInput.value = (price * 1.03).toFixed(4);
+            }
+
+            updateOrderInfo();
+        }
+
+        function updateOrderInfo() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const leverage = parseInt(leverageSelect.value) || 1;
+            const pricePerContract = parseFloat(limitPriceInput.value) || currentPrice;
+
+            if (quantity > 0) {
+                const orderValue = pricePerContract * quantity; // 下单额度（基数）
+                const totalContractValue = orderValue * leverage; // 总合约额度
+                const estimatedFee = totalContractValue * 0.0005; // 0.05% 手续费
+                const notionalValue = orderValue; // 名义价值
+
+                orderValueSpan.textContent = orderValue.toFixed(2);
+                totalContractValueSpan.textContent = totalContractValue.toFixed(2);
+                estimatedFeeSpan.textContent = estimatedFee.toFixed(2);
+
+                // 更新名义价值显示
+                notionalValueSpan.textContent = `Notional Value: ${notionalValue.toFixed(2)} USDT`;
+                if (notionalValue < 20) {
+                    notionalValueSpan.style.color = 'red';
+                    notionalValueSpan.textContent += ' (Minimum: 20 USDT)';
+                } else {
+                    notionalValueSpan.style.color = 'black';
+                }
+
+                orderInfo.style.display = 'block';
+            } else {
+                orderInfo.style.display = 'none';
+            }
+        }
+
+        if (directionRadios) {
+            directionRadios.forEach(function(radio) {
+                radio.addEventListener('change', updatePrices);
+            });
+        }
+
+        if (limitPriceInput) {
+            limitPriceInput.addEventListener('input', updatePrices);
+        }
+
+        if (quantityInput) {
+            quantityInput.addEventListener('input', updateOrderInfo);
+        }
+
+        if (leverageSelect) {
+            leverageSelect.addEventListener('change', updateOrderInfo);
+        }
+
+        // 初始化止盈止损价格和订单信息
+        updatePrices();
+
+        // 当限价改变时，更新止盈止损价格和订单信息
+        if (limitPriceInput) {
+            limitPriceInput.addEventListener('change', updatePrices);
+        }
+
+        // 当选择市价单时，使用当前价格更新止盈止损和订单信息
+        if (orderTypeRadios && limitPriceInput) {
+            orderTypeRadios.forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'market') {
+                        limitPriceInput.value = currentPrice.toFixed(4);
+                        updatePrices();
+                    }
+                });
+            });
+        }
+
+        // 添加表单提交事件监听器
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const notionalValue = parseFloat(orderValueSpan.textContent);
+                if (notionalValue < 20) {
+                    e.preventDefault();
+                    alert('Order value must be at least 20 USDT. Please increase the quantity.');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

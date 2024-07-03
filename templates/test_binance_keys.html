@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>欢迎来到天天吃饱饭</h1>
+{% if 'user_id' in session %}
+    <p>您好,{{ user.username }}!</p>
+    
+    <h2>币安密钥测试</h2>
+    {% if binance_keys %}
+        <form id="testBinanceKeyForm">
+            <div class="form-group">
+                <label for="binance_key">选择要测试的币安密钥:</label>
+                <select class="form-control" id="binance_key" name="binance_key">
+                    {% for key in binance_keys %}
+                        <option value="{{ key.id }}">{{ key.comment }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">测试</button>
+        </form>
+        
+        <div id="testResult"></div>
+    {% else %}
+        <p>您尚未添加任何币安密钥。请先<a href="{{ url_for('binance.add_binance_key') }}">添加币安密钥</a>。</p>
+    {% endif %}
+{% else %}
+    <p>请登录或注册以使用我们的服务。</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function() {
+    $('#testBinanceKeyForm').submit(function(event) {
+        event.preventDefault();
+        var formData = $(this).serialize();
+        
+        $.ajax({
+            url: "{{ url_for('binance.test_binance_key') }}",
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                var resultHtml = '<h3>测试结果:</h3>';
+                resultHtml += '<pre>' + JSON.stringify(response, null, 2) + '</pre>';
+                $('#testResult').html(resultHtml);
+            },
+            error: function(jqXHR) {
+                var errorHtml = '<h3>测试结果:</h3>';
+                errorHtml += '<p class="text-danger">' + jqXHR.responseJSON.error + '</p>';
+                $('#testResult').html(errorHtml);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

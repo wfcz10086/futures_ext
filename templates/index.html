@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>欢迎来到天天吃饱饭</h1>
+{% if 'user_id' in session %}
+    <p>您好,{{ user.username }}!</p>
+    
+    <h2>账户余额</h2>
+    {% for key in user.binance_keys %}
+    <h3>API密钥: {{ key.comment or key.api_key }}</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>资产</th>
+                <th>可用余额</th>
+                <th>未实现盈亏</th>
+                <th>全仓账户余额</th>
+                <th>是否可用作保证金</th>
+                <th>最大可提款金额</th>
+                <th>更新时间</th>
+            </tr>
+        </thead>
+        <tbody id="balances-{{ key.id }}">
+            <tr>
+                <td colspan="8">加载中...</td>
+            </tr>
+        </tbody>
+    </table>
+    {% endfor %}
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    {% for key in user.binance_keys %}
+    $.ajax({
+        url: "{{ url_for('binance.get_account_balance') }}",
+        method: 'POST',
+        data: {binance_key: {{ key.id }} },
+        success: function(response) {
+            if (response.success) {
+                var balances = response.balances;
+                var html = '';
+                for (var i = 0; i < balances.length; i++) {
+                    var balance = balances[i];
+                    html += '<tr>';
+                    html += '<td>' + balance.asset + '</td>';
+                    html += '<td>' + balance.availableBalance + '</td>';
+                    html += '<td>' + balance.crossUnPnl + '</td>';
+                    html += '<td>' + balance.crossWalletBalance + '</td>';
+                    html += '<td>' + balance.marginAvailable + '</td>';
+                    html += '<td>' + balance.maxWithdrawAmount + '</td>';
+                    html += '<td>' + (balance.updateTime ? new Date(balance.updateTime).toLocaleString() : '') + '</td>';
+                    html += '</tr>';
+                }
+                $('#balances-{{ key.id }}').html(html);
+            } else {
+                $('#balances-{{ key.id }}').html('<tr><td colspan="8">获取余额失败</td></tr>');
+            }
+        }
+    });
+    {% endfor %}
+});
+</script>
+{% else %}
+    <p>请登录或注册以使用我们的服务。</p>
+{% endif %}
+
+{% endblock %}

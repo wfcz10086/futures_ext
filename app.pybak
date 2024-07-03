@@ -1,0 +1,169 @@
+from flask import Flask, render_template, redirect, url_for, flash, session, request, jsonify, abort, get_flashed_messages
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired, Email, EqualTo, ValidationError, URL
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+import redis
+import random
+import string
+from datetime import datetime, timedelta
+
+
+
+
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:10086@10.0.0.5:3306/qihuo'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# 用户模型
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+# 登录权限认证装饰器
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            get_flashed_messages(with_categories=True, category_filter=["info"])
+
+            flash('请先登录。')
+            return redirect(url_for('login_user', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# 表单类
+class LoginForm(FlaskForm):
+    username = StringField('用户名', validators=[DataRequired()])
+    password = PasswordField('密码', validators=[DataRequired()])
+    submit = SubmitField('登录')
+
+class RegisterForm(FlaskForm):
+    username = StringField('用户名', validators=[DataRequired()])
+    email = StringField('电子邮件', validators=[DataRequired(), Email()])
+    password = PasswordField('密码', validators=[DataRequired()])
+    confirm_password = PasswordField('确认密码', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('注册')
+
+    def validate_username(self, username):
+        user = User.query.filter_by(username=username.data).first()
+        if user:
+            raise ValidationError('用户名已存在。')
+
+    def validate_email(self, email):
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('电子邮件已被注册。')
+
+class ResetPasswordForm(FlaskForm):
+    old_password = PasswordField('旧密码', validators=[DataRequired()])
+    new_password = PasswordField('新密码', validators=[DataRequired()])
+    confirm_password = PasswordField('确认新密码', validators=[DataRequired(), EqualTo('new_password')])
+    submit = SubmitField('重置密码')
+
+class BinanceKey(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    api_key = db.Column(db.String(100), nullable=False)
+    secret_key = db.Column(db.String(100), nullable=False)
+    comment = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('binance_keys', lazy=True))
+
+
+
+# 视图函数
+@app.route('/')
+def index():
+    if 'user_id' in session:
+        user_id = session['user_id']
+        user = User.query.get(user_id)
+        return render_template('index.html', user=user)
+    return render_template('index.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register_user():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data, email=form.email.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        get_flashed_messages(with_categories=True, category_filter=["info"])
+
+        flash('注册成功！')
+        return redirect(url_for('login_user'))
+    return render_template('register.html', form=form)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login_user():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user and user.check_password(form.password.data):
+            session['user_id'] = user.id
+            get_flashed_messages(with_categories=True, category_filter=["info"])
+
+            flash('登录成功！')
+            return redirect(url_for('index'))
+        flash('无效的用户名或密码。')
+    return render_template('login.html', form=form)
+
+@app.route('/logout')
+def logout_user():
+    session.pop('user_id', None)
+    flash('您已登出。')
+    return redirect(url_for('index'))
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+@login_required
+def reset_password():
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.get(session['user_id'])
+        if user.check_password(form.old_password.data):
+            user.set_password(form.new_password.data)
+            db.session.commit()
+            get_flashed_messages(with_categories=True, category_filter=["info"])
+
+            flash('密码重置成功。')
+            return redirect(url_for('index'))
+        get_flashed_messages(with_categories=True, category_filter=["info"])
+
+        flash('旧密码不正确。')
+
+    return render_template('reset_password.html', form=form)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            get_flashed_messages(with_categories=True, category_filter=["info"])
+
+            flash('请先登录。')
+            return redirect(url_for('login_user', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+from .binance_module import binance_bp
+
+app.register_blueprint(binance_bp)
+
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True, host='0.0.0.0', port=8000)

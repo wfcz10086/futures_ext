@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>币安密钥管理</h1>
+<a href="{{ url_for('binance.add_binance_key') }}" class="btn btn-primary mb-3">添加币安密钥</a>
+
+{% if binance_keys %}
+<table class="table">
+<thead>
+<tr>
+<th>备注</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody>
+{% for key in binance_keys %}
+<tr>
+<td>{{ key.comment }}</td>
+<td>
+<a href="{{ url_for('binance.edit_binance_key', key_id=key.id) }}" class="btn btn-sm btn-primary">编辑</a>
+<form action="{{ url_for('binance.delete_binance_key', key_id=key.id) }}" method="POST" class="d-inline">
+<button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定要删除此币安密钥吗?')">删除</button>
+</form>
+<form action="{{ url_for('binance.test_binance_key') }}" method="POST" class="d-inline test-binance-key-form">
+<input type="hidden" name="binance_key" value="{{ key.id }}">
+<button type="submit" class="btn btn-sm btn-info">测试</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div id="testResult"></div>
+{% else %}
+<p>您尚未添加任何币安密钥。</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+
+<script> $(function() { $('.test-binance-key-form').submit(function(event) { event.preventDefault(); var form = $(this); var formData = form.serialize(); $.ajax({ url: form.attr('action'), method: 'POST', data: formData, success: function(response) { var resultHtml = '<h3>测试结果:</h3>'; resultHtml += '<pre>' + JSON.stringify(response, null, 2) + '</pre>';
+scheme
+复制
+            $('#testResult').html(resultHtml);
+        },
+        error: function(jqXHR) {
+            var errorHtml = '<h3>测试结果:</h3>';
+            errorHtml += '<p class="text-danger">' + jqXHR.responseJSON.error + '</p>';
+            $('#testResult').html(errorHtml);
+        }
+    });
+});
+});
+</script>
+{% endblock %}

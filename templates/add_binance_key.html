@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>添加币安密钥</h1>
+  <form method="POST">
+    {{ form.csrf_token }}
+    <div class="form-group">
+      {{ form.api_key.label }}
+      {{ form.api_key(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.secret_key.label }}
+      {{ form.secret_key(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.comment.label }}
+      {{ form.comment(class="form-control") }}
+    </div>
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>获取 K 线数据</h1>
+
+<form id="klines-form" method="POST">
+    <div class="form-group">
+        <label for="binance_key">选择币安密钥:</label>
+        <select class="form-control" id="binance_key" name="binance_key">
+            {% for key in binance_keys %}
+            <option value="{{ key.id }}">{{ key.comment }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="symbol">交易对:</label>
+        <input type="text" class="form-control" id="symbol" name="symbol" value="CRVUSDT" required>
+    </div>
+    <div class="form-group">
+        <label for="interval">时间间隔:</label>
+        <select class="form-control" id="interval" name="interval">
+            <option value="1h">1 小时</option>
+            <option value="2h">2 小时</option>
+            <option value="4h">4 小时</option>
+            <option value="6h">6 小时</option>
+            <option value="8h">8 小时</option>
+            <option value="12h">12 小时</option>
+            <option value="1d">1 天</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="limit">数据条数:</label>
+        <input type="number" class="form-control" id="limit" name="limit" value="200" min="1" max="1000" required>
+    </div>
+    <button type="submit" class="btn btn-primary">获取 K 线数据</button>
+</form>
+
+<div id="klines-result"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function() {
+    $('#klines-form').submit(function(event) {
+        event.preventDefault();
+        var formData = $(this).serialize();
+
+        $.ajax({
+            url: "{{ url_for('get_klines.get_klines') }}",
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    var resultHtml = '<h3>K 线数据:</h3>';
+                    resultHtml += '<pre>' + JSON.stringify(response.klines, null, 2) + '</pre>';
+                    $('#klines-result').html(resultHtml);
+                } else {
+                    var errorHtml = '<div class="alert alert-danger">获取 K 线数据失败: ' + response.error + '</div>';
+                    $('#klines-result').html(errorHtml);
+                }
+            },
+            error: function(jqXHR) {
+                var errorHtml = '<div class="alert alert-danger">获取 K 线数据失败: ' + jqXHR.responseJSON.error + '</div>';
+                $('#klines-result').html(errorHtml);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

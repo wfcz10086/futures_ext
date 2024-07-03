@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>保存的永续合约期货币种</h1>
+
+{% if futures_symbols %}
+<ul>
+    {% for symbol in futures_symbols %}
+    <li>{{ symbol.symbol }}</li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>您还没有保存任何永续合约期货币种。</p>
+{% endif %}
+
+<a href="{{ url_for('get_futures_symbols.futures_symbols') }}" class="btn btn-primary">返回</a>
+{% endblock %}
