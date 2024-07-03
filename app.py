@@ -1,18 +1,26 @@
 from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_login import LoginManager
-
 from extensions import db
-login_manager = LoginManager()
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://*****:*****@127.0.0.1:3306/qihuo'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:10086@10.0.0.5:3306/qihuo'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 
+# 初始化 Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login'  # 指定登录视图的端点
+
 from models import User
 from auth import auth_bp, login_required
 from binance_module import binance_bp
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(binance_bp)
@@ -27,7 +35,6 @@ from order_management import order_management_bp
 app.register_blueprint(order_management_bp)
 from order_check import order_check_bp
 app.register_blueprint(order_check_bp)
-
 
 @app.route('/')
 def index():

@@ -131,8 +131,8 @@
         const totalContractValueSpan = document.getElementById('total-contract-value');
         const estimatedFeeSpan = document.getElementById('estimated-fee');
         const leverageSelect = document.getElementById('leverage');
-        const notionalValueSpan = document.createElement('span'); // 新增：名义价值显示元素
-        orderInfo.appendChild(notionalValueSpan); // 将名义价值显示添加到订单信息中
+        const notionalValueSpan = document.createElement('span');
+        orderInfo.appendChild(notionalValueSpan);
 
         const currentPrice = currentPriceElement ? parseFloat(currentPriceElement.textContent) : 0;
 
@@ -172,16 +172,15 @@
             const pricePerContract = parseFloat(limitPriceInput.value) || currentPrice;
 
             if (quantity > 0) {
-                const orderValue = pricePerContract * quantity; // 下单额度（基数）
-                const totalContractValue = orderValue * leverage; // 总合约额度
-                const estimatedFee = totalContractValue * 0.0005; // 0.05% 手续费
-                const notionalValue = orderValue; // 名义价值
+                const orderValue = pricePerContract * quantity/leverage;
+                const totalContractValue = orderValue * leverage;
+                const estimatedFee = totalContractValue * 0.0005;
+                const notionalValue = totalContractValue;
 
                 orderValueSpan.textContent = orderValue.toFixed(2);
                 totalContractValueSpan.textContent = totalContractValue.toFixed(2);
                 estimatedFeeSpan.textContent = estimatedFee.toFixed(2);
 
-                // 更新名义价值显示
                 notionalValueSpan.textContent = `Notional Value: ${notionalValue.toFixed(2)} USDT`;
                 if (notionalValue < 20) {
                     notionalValueSpan.style.color = 'red';
@@ -214,15 +213,12 @@
             leverageSelect.addEventListener('change', updateOrderInfo);
         }
 
-        // 初始化止盈止损价格和订单信息
         updatePrices();
 
-        // 当限价改变时，更新止盈止损价格和订单信息
         if (limitPriceInput) {
             limitPriceInput.addEventListener('change', updatePrices);
         }
 
-        // 当选择市价单时，使用当前价格更新止盈止损和订单信息
         if (orderTypeRadios && limitPriceInput) {
             orderTypeRadios.forEach(function(radio) {
                 radio.addEventListener('change', function() {
@@ -234,14 +230,13 @@
             });
         }
 
-        // 添加表单提交事件监听器
         const form = document.querySelector('form');
         if (form) {
             form.addEventListener('submit', function(e) {
-                const notionalValue = parseFloat(orderValueSpan.textContent);
+                const notionalValue = parseFloat(totalContractValueSpan.textContent);
                 if (notionalValue < 20) {
                     e.preventDefault();
-                    alert('Order value must be at least 20 USDT. Please increase the quantity.');
+                    alert('Notional value must be at least 20 USDT. Please increase the quantity or leverage.');
                 }
             });
         }

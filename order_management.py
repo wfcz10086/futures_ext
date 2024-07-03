@@ -6,10 +6,11 @@ from binance.client import Client
 from binance.enums import *
 from binance.exceptions import BinanceAPIException
 from decimal import Decimal
+import math
 import json
-from binance.exceptions import BinanceAPIException
 from decimal import Decimal, ROUND_DOWN
 import logging
+from flask import jsonify, request, current_app
 
 order_management_bp = Blueprint('order_management', __name__)
 
@@ -111,59 +112,79 @@ def order(symbol):
         return str(e), 400
     except Exception as e:
         return f"An unexpected error occurred: {str(e)}", 500
-from flask import jsonify, request, current_app
-from flask_login import login_required, current_user
-from binance.exceptions import BinanceAPIException
-from decimal import Decimal, ROUND_DOWN
-import logging
 
-# 假设这些是您的蓝图和 Binance 客户端设置
-# from your_app import order_management_bp, client
 
-def round_step_size(quantity: float, step_size: float) -> float:
-    """将数量舍入到最接近的步长"""
-    precision = len(str(step_size).split('.')[-1])
-    return float(Decimal(str(quantity)).quantize(Decimal(str(step_size)), rounding=ROUND_DOWN))
+def round_step_size(value, step_size):
+    """
+    将数值舍入到最接近的步长
+    :param value: 要舍入的数值
+    :param step_size: 步长
+    :return: 舍入后的数值
+    """
+    precision = int(round(-math.log(step_size, 10), 0))
+    return round(round(value / step_size) * step_size, precision)
 
+
+
+def validate_order_response(order):
+    if not isinstance(order, dict):
+        raise ValueError(f"Invalid order response type: {type(order)}")
+    if 'orderId' not in order:
+        raise ValueError("Order ID not found in response")
+    if 'status' not in order:
+        raise ValueError("Order status not found in response")
+    return order
 @order_management_bp.route('/place_order/<symbol>', methods=['POST'])
 @login_required
 def place_order(symbol):
+    logger = current_app.logger
+    logger.info(f"Attempting to place order for symbol: {symbol}")
+
     try:
-        # 从请求中获取参数
-        data = request.json
-        order_type = data.get('order_type', 'MARKET').upper()
-        direction = data.get('direction', 'long').lower()
-        quantity = float(data.get('quantity', 0))
-        price = float(data.get('price', 0)) if order_type == 'LIMIT' else None
-        leverage = int(data.get('leverage', 1))
-        take_profit = float(data.get('take_profit', 0))
-        stop_loss = float(data.get('stop_loss', 0))
+        # 获取用户的第一个 Binance API 密钥
+        key = BinanceKey.query.filter_by(user_id=session['user_id']).first()
+        if not key:
+            logger.error("No API key found for user")
+            return jsonify(success=False, error="No API key found"), 404
 
-        # 验证参数
-        if not symbol or not order_type or not direction or quantity <= 0:
-            return jsonify(success=False, error="Invalid parameters provided"), 400
+        # 初始化 Binance 客户端
+        client = Client(key.api_key, key.secret_key)
 
-        if order_type == 'LIMIT' and price <= 0:
-            return jsonify(success=False, error="Invalid price for limit order"), 400
-
-        # 获取交易对的信息
-        symbol_info = client.futures_exchange_info()
-        symbol_info = next((s for s in symbol_info['symbols'] if s['symbol'] == symbol), None)
+        # 获取交易对信息
+        exchange_info = client.futures_exchange_info()
+        symbol_info = next((s for s in exchange_info['symbols'] if s['symbol'] == symbol), None)
         if not symbol_info:
-            return jsonify(success=False, error=f"Symbol {symbol} not found"), 400
+            raise ValueError(f"Symbol {symbol} not found")
+
+        # 从请求中获取参数
+        leverage = int(request.form.get('leverage', 1))
+        direction = request.form.get('direction', 'long')
+        order_type = request.form.get('order_type', 'MARKET').upper()
+        quantity = float(request.form.get('quantity', 0))
+        limit_price = float(request.form.get('limit_price', 0))
+        take_profit = float(request.form.get('take_profit', 0))
+        stop_loss = float(request.form.get('stop_loss', 0))
+
+        # 参数验证
+        if quantity <= 0:
+            raise ValueError("Invalid quantity")
+
+        if order_type == 'LIMIT' and limit_price <= 0:
+            raise ValueError("Invalid limit price")
 
         lot_size_filter = next(filter(lambda x: x['filterType'] == 'LOT_SIZE', symbol_info['filters']))
         price_filter = next(filter(lambda x: x['filterType'] == 'PRICE_FILTER', symbol_info['filters']))
-        
+
         step_size = float(lot_size_filter['stepSize'])
         tick_size = float(price_filter['tickSize'])
 
         # 舍入数量和价格
         quantity = round_step_size(quantity, step_size)
         if order_type == 'LIMIT':
-            price = round_step_size(price, tick_size)
+            limit_price = round_step_size(limit_price, tick_size)
 
         # 设置杠杆
+        logger.info(f"Setting leverage to {leverage} for {symbol}")
         client.futures_change_leverage(symbol=symbol, leverage=leverage)
 
         # 创建订单参数
@@ -175,59 +196,78 @@ def place_order(symbol):
         }
 
         if order_type == 'LIMIT':
-            order_params['price'] = price
+            order_params['price'] = limit_price
             order_params['timeInForce'] = 'GTC'  # Good Till Cancel
 
+        logger.info(f"Prepared order parameters: {order_params}")
+
         # 下单
+        logger.info(f"Placing order with params: {order_params}")
         order = client.futures_create_order(**order_params)
+        logger.info(f"Full Binance API response: {order}")
+
+        # 验证订单响应
+        order = validate_order_response(order)
+        logger.info(f"Order placed successfully: {order}")
 
         # 设置止盈止损
         if take_profit > 0:
-            tp_params = order_params.copy()
-            tp_params['type'] = 'TAKE_PROFIT_MARKET'
-            tp_params['stopPrice'] = round_step_size(take_profit, tick_size)
-            tp_params['side'] = 'SELL' if direction == 'long' else 'BUY'
+            tp_params = {
+                'symbol': symbol,
+                'side': 'SELL' if direction == 'long' else 'BUY',
+                'type': 'TAKE_PROFIT_MARKET',
+                'stopPrice': round_step_size(take_profit, tick_size),
+                'closePosition': True
+            }
+            logger.info(f"Setting take profit: {tp_params}")
             client.futures_create_order(**tp_params)
 
         if stop_loss > 0:
-            sl_params = order_params.copy()
-            sl_params['type'] = 'STOP_MARKET'
-            sl_params['stopPrice'] = round_step_size(stop_loss, tick_size)
-            sl_params['side'] = 'SELL' if direction == 'long' else 'BUY'
+            sl_params = {
+                'symbol': symbol,
+                'side': 'SELL' if direction == 'long' else 'BUY',
+                'type': 'STOP_MARKET',
+                'stopPrice': round_step_size(stop_loss, tick_size),
+                'closePosition': True
+            }
+            logger.info(f"Setting stop loss: {sl_params}")
             client.futures_create_order(**sl_params)
-        # 创建订单记录
+
+        # 创建订单记录  
         new_order = Order(
-            user_id=current_user.id,
+            user_id=session['user_id'],
             symbol=symbol,
-            order_type=order_type,
+            order_type=order_type, 
             direction=direction,
             quantity=quantity,
-            price=price if order_type == 'LIMIT' else None,
+            price=limit_price if order_type == 'LIMIT' else float(order['avgPrice']),
             leverage=leverage,
             take_profit=take_profit if take_profit > 0 else None,
             stop_loss=stop_loss if stop_loss > 0 else None,
-            order_id=order['orderId'],
-            status=order['status']
+            order_id=str(order['orderId']),
+            status=order.get('status', 'UNKNOWN')
         )
 
         # 保存订单到数据库
-        db.session.add(new_order)
-        db.session.commit()
+        try:    
+            db.session.add(new_order)
+            db.session.commit()
+            logger.info(f"Order saved to database: {new_order}")
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            db.session.rollback()  
+            raise ValueError("Failed to save order to database")
 
-        # 记录订单信息
-        current_app.logger.info(f"Order placed and saved: {new_order}")
-
-        # 重定向到主页
-        return redirect(url_for('/'))  # 假设您有一个名为 'main' 的蓝图，其中包含 'index' 路由
+        return jsonify(success=True, message="Order placed successfully", order_id=order['orderId'])
 
     except BinanceAPIException as e:
-        db.session.rollback()
-        current_app.logger.error(f"Binance API error: {str(e)}")
+        logger.error(f"Binance API error in place_order: {str(e)}")
         return jsonify(success=False, error=f"Binance API error: {str(e)}"), 400
-    except ValueError as e:
-        current_app.logger.error(f"Value error: {str(e)}")
-        return jsonify(success=False, error=f"Invalid input: {str(e)}"), 400
+
+    except (ValueError, KeyError) as e:
+        logger.error(f"Value error in place_order: {str(e)}")
+        return jsonify(success=False, error=str(e)), 400
+    
     except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Unexpected error: {str(e)}")
-        return jsonify(success=False, error="An unexpected error occurred"), 500
+        logger.error(f"Unexpected error in place_order: {str(e)}", exc_info=True)
+        return jsonify(success=False, error=f"Unexpected error: {str(e)}"), 500
