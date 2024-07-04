@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}待处理限价单{% endblock %}
+
+{% block content %}
+<h1>待处理限价单</h1>
+
+<div id="flashMessages">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+{% if orders %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>交易对</th>
+                <th>方向</th>
+                <th>价格</th>
+                <th>数量</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+                <tr>
+                    <td>{{ order.symbol }}</td>
+                    <td>{{ order.side }}</td>
+                    <td>{{ order.price }}</td>
+                    <td>{{ order.origQty }}</td>
+                    <td>
+                        <form action="{{ url_for('pending_order.cancel_order') }}" method="post" style="display: inline;">
+                            <input type="hidden" name="symbol" value="{{ order.symbol }}">
+                            <input type="hidden" name="order_id" value="{{ order.orderId }}">
+                            <button type="submit" class="btn btn-danger btn-sm">取消</button>
+                        </form>
+                        <button onclick="showUpdateForm('{{ order.symbol }}', '{{ order.orderId }}', '{{ order.price }}', '{{ order.origQty }}')" class="btn btn-primary btn-sm">更新</button>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% for page_num in range(1, total_pages + 1) %}
+                <li class="page-item {% if page_num == page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('pending_order.pending_orders', page=page_num) }}">{{ page_num }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+{% else %}
+    <p>没有找到待处理的限价单。</p>
+{% endif %}
+
+<div id="updateForm" style="display:none;">
+    <h2>更新限价单</h2>
+    <form id="updateOrderForm">
+        <input type="hidden" id="updateSymbol" name="symbol">
+        <input type="hidden" id="updateOrderId" name="order_id">
+        
+        <div class="form-group">
+            <label for="updatePrice">新价格：</label>
+            <input type="text" id="updatePrice" name="new_price" class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="updateQuantity">新数量：</label>
+            <input type="text" id="updateQuantity" name="new_quantity" class="form-control">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">确认更新</button>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+function showUpdateForm(symbol, orderId, price, quantity) {
+    document.getElementById('updateSymbol').value = symbol;
+    document.getElementById('updateOrderId').value = orderId;
+    document.getElementById('updatePrice').value = price;
+    document.getElementById('updateQuantity').value = quantity;
+
+    document.getElementById('updateForm').style.display = 'block';
+}
+
+$(document).ready(function() {
+    $('#updateOrderForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: "{{ url_for('pending_order.update_order') }}",
+            method: "POST",
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    $('#flashMessages').html('<div class="alert alert-success">' + response.message + '</div>');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    $('#flashMessages').html('<div class="alert alert-danger">' + response.error + '</div>');
+                }
+            },
+            error: function(xhr, status, error) {
+                var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : "发生未知错误";
+                $('#flashMessages').html('<div class="alert alert-danger">' + errorMessage + '</div>');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

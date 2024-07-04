@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>开放订单</h1>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h2>常规订单</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>交易对</th>
+      <th>类型</th>
+      <th>方向</th>
+      <th>价格</th>
+      <th>数量</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in regular_orders %}
+    <tr>
+      <td>{{ order.symbol }}</td>
+      <td>{{ order.type }}</td>
+      <td>{{ order.side }}</td>
+      <td>{{ order.price }}</td>
+      <td>{{ order.origQty }}</td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="showUpdateOrderModal('{{ order.symbol }}', '{{ order.orderId }}', '{{ order.price }}', '{{ order.origQty }}', '{{ order.type }}', '{{ order.side }}')">更新</button>
+        <form method="POST" action="{{ url_for('pending_order.cancel_order', symbol=order.symbol, order_id=order.orderId) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-danger">取消</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>止盈止损订单</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>交易对</th>
+      <th>类型</th>
+      <th>方向</th>
+      <th>触发价格</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in tp_sl_orders %}
+    <tr>
+      <td>{{ order.symbol }}</td>
+      <td>{{ order.type }}</td>
+      <td>{{ order.side }}</td>
+      <td>{{ order.stopPrice }}</td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="showUpdateTPSLOrderModal('{{ order.symbol }}', '{{ order.orderId }}', '{{ order.stopPrice }}', '{{ order.type }}', '{{ order.side }}')">更新</button>
+        <form method="POST" action="{{ url_for('pending_order.cancel_order', symbol=order.symbol, order_id=order.orderId) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-danger">取消</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<!-- 更新订单模态框 -->
+<div class="modal fade" id="updateOrderModal" tabindex="-1" role="dialog" aria-labelledby="updateOrderModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="updateOrderModalLabel">更新订单</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="updateOrderForm" method="POST" action="{{ url_for('pending_order.update_order') }}">
+          <input type="hidden" id="updateSymbol" name="symbol">
+          <input type="hidden" id="updateOrderId" name="order_id">
+          <input type="hidden" id="updateOrderType" name="order_type">
+          <input type="hidden" id="updateSide" name="side">
+          <div class="form-group">
+            <label for="updatePrice">新价格</label>
+            <input type="number" class="form-control" id="updatePrice" name="new_price" step="0.00000001" required>
+          </div>
+          <div class="form-group" id="updateQuantityGroup">
+            <label for="updateQuantity">新数量</label>
+            <input type="number" class="form-control" id="updateQuantity" name="new_quantity" step="0.00000001">
+          </div>
+          <button type="submit" class="btn btn-primary">更新订单</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 减少仓位模态框 -->
+<div class="modal fade" id="reducePositionModal" tabindex="-1" role="dialog" aria-labelledby="reducePositionModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reducePositionModalLabel">减少仓位</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="reducePositionForm" method="POST" action="{{ url_for('pending_order.reduce_position') }}">
+          <input type="hidden" id="reduceSymbol" name="symbol">
+          <div class="form-group">
+            <label for="reduceQuantity">减仓数量</label>
+            <input type="number" class="form-control" id="reduceQuantity" name="reduce_quantity" step="0.00000001" required>
+          </div>
+          <button type="submit" class="btn btn-primary">减少仓位</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showUpdateOrderModal(symbol, orderId, price, quantity, type, side) {
+  document.getElementById('updateSymbol').value = symbol;
+  document.getElementById('updateOrderId').value = orderId;
+  document.getElementById('updatePrice').value = price;
+  document.getElementById('updateQuantity').value = quantity;
+  document.getElementById('updateOrderType').value = type;
+  document.getElementById('updateSide').value = side;
+  
+  if (type === 'STOP_MARKET' || type === 'TAKE_PROFIT_MARKET') {
+    document.getElementById('updateQuantityGroup').style.display = 'none';
+  } else {
+    document.getElementById('updateQuantityGroup').style.display = 'block';
+  }
+  
+  $('#updateOrderModal').modal('show');
+}
+
+function showUpdateTPSLOrderModal(symbol, orderId, stopPrice, type, side) {
+  document.getElementById('updateSymbol').value = symbol;
+  document.getElementById('updateOrderId').value = orderId;
+  document.getElementById('updatePrice').value = stopPrice;
+  document.getElementById('updateOrderType').value = type;
+  document.getElementById('updateSide').value = side;
+  document.getElementById('updateQuantityGroup').style.display = 'none';
+  
+  $('#updateOrderModal').modal('show');
+}
+
+function showReducePositionModal(symbol) {
+  document.getElementById('reduceSymbol').value = symbol;
+  
+  // 获取当前持仓信息
+  fetch(`/get_position_info/${symbol}`)
+    .then(response => response.json())
+    .then(data => {
+      const currentPosition = parseFloat(data.positionAmt);
+      document.getElementById('reduceQuantity').max = Math.abs(currentPosition);
+      $('#reducePositionModal').modal('show');
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script>
+
+{% endblock %}

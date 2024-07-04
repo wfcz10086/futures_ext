@@ -16,6 +16,8 @@
             <ul class="navbar-nav ml-auto">
                 {% if 'user_id' in session %}
                 <a class="nav-link" href="{{ url_for('order_management.order_management') }}">下单管理</a>
+                <a class="nav-link" href="{{ url_for('pending_order.pending_orders') }}">限价挂单管理</a>
+                <a class="nav-link" href="{{ url_for('take_profit_stop_loss.take_profit_stop_loss') }}">止盈止损管理</a>
 
 <a href="{{ url_for('get_klines.get_klines') }}" class="btn btn-primary mb-3">获取数据测试</a>
 <a href="{{ url_for('get_futures_symbols.futures_symbols') }}" class="btn btn-primary mb-3">永续</a>

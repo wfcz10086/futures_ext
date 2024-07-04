@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>当前活跃止盈止损订单</h1>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+{% if orders %}
+<table>
+    <thead>
+        <tr>
+            <th>订单ID</th>
+            <th>交易对</th>
+            <th>类型</th>
+            <th>方向</th>
+            <th>价格</th>
+            <th>数量</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for order in orders %}
+        <tr>
+            <td>{{ order.orderId }}</td>
+            <td>{{ order.symbol }}</td>
+            <td>{{ order.type }}</td>
+            <td>{{ order.side }}</td>
+            <td>{{ order.stopPrice }}</td>
+            <td>{{ order.origQty }}</td>
+            <td>
+                <button class="cancel-btn" data-order-id="{{ order.orderId }}" data-symbol="{{ order.symbol }}">取消订单</button>
+                <button class="update-btn" data-order-id="{{ order.orderId }}" data-symbol="{{ order.symbol }}">修改止盈止损</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<!-- 分页 -->
+<div class="pagination">
+    {% if has_prev %}
+        <a href="{{ url_for('take_profit_stop_loss.take_profit_stop_loss', page=page-1) }}">上一页</a>
+    {% endif %}
+    
+    <span>第 {{ page }} 页，共 {{ total_pages }} 页</span>
+    
+    {% if has_next %}
+        <a href="{{ url_for('take_profit_stop_loss.take_profit_stop_loss', page=page+1) }}">下一页</a>
+    {% endif %}
+</div>
+{% else %}
+<p>当前没有活跃的止盈止损订单。</p>
+{% endif %}
+
+<!-- 修改止盈止损的模态框 -->
+<div id="updateModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2>修改止盈止损</h2>
+        <form id="updateForm">
+            <input type="hidden" id="updateOrderId" name="order_id">
+            <input type="hidden" id="updateSymbol" name="symbol">
+            <label for="takeProfitPrice">止盈价格:</label>
+            <input type="number" id="takeProfitPrice" name="take_profit" step="0.00000001">
+            <label for="stopLossPrice">止损价格:</label>
+            <input type="number" id="stopLossPrice" name="stop_loss" step="0.00000001">
+            <button type="submit">更新</button>
+            <button type="button" id="cancelUpdate">取消</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 取消订单
+    document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const orderId = this.dataset.orderId;
+            const symbol = this.dataset.symbol;
+            
+            if (confirm('确定要取消此订单吗？')) {
+                fetch('{{ url_for("take_profit_stop_loss.cancel_order") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `order_id=${orderId}&symbol=${symbol}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        console.error('Cancel failed:', data.message);
+                        alert('错误: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('取消失败，请稍后重试。');
+                });
+            }
+        });
+    });
+
+    // 修改止盈止损
+    const modal = document.getElementById('updateModal');
+    const updateForm = document.getElementById('updateForm');
+    const cancelUpdateBtn = document.getElementById('cancelUpdate');
+
+    document.querySelectorAll('.update-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const orderId = this.dataset.orderId;
+            const symbol = this.dataset.symbol;
+            document.getElementById('updateOrderId').value = orderId;
+            document.getElementById('updateSymbol').value = symbol;
+            modal.style.display = 'block';
+        });
+    });
+
+    cancelUpdateBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+
+    updateForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch('{{ url_for("take_profit_stop_loss.update_tp_sl") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                console.error('Update failed:', data.message);
+                alert('错误: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新失败，请稍后重试。');
+        });
+    });
+});
+</script>
+
+<style>
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+}
+</style>
+{% endblock %}

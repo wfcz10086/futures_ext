@@ -35,6 +35,11 @@ from order_management import order_management_bp
 app.register_blueprint(order_management_bp)
 from order_check import order_check_bp
 app.register_blueprint(order_check_bp)
+from pending_order import pending_order_bp
+app.register_blueprint(pending_order_bp)
+
+from take_profit_stop_loss import take_profit_stop_loss_bp
+app.register_blueprint(take_profit_stop_loss_bp)
 
 @app.route('/')
 def index():

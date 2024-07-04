@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="zh">
+<body>
+    <h1>止盈止损管理</h1>
+    
+    {% for position in positions %}
+    <div>
+        <h2>{{ position.symbol }}</h2>
+        <p>仓位数量: {{ position.positionAmt }}</p>
+        <p>入场价格: {{ position.entryPrice }}</p>
+        <h3>止盈止损订单:</h3>
+        <ul>
+        {% for order in position.tpsl_orders %}
+            <li>
+                {{ order.type }} - 价格: {{ order.stopPrice }}
+                <form action="{{ url_for('take_profit_stop_loss.cancel_tpsl') }}" method="post" style="display: inline;">
+                    <input type="hidden" name="symbol" value="{{ position.symbol }}">
+                    <input type="hidden" name="order_id" value="{{ order.orderId }}">
+                    <button type="submit">取消</button>
+                </form>
+            </li>
+        {% endfor %}
+        </ul>
+        <form action="{{ url_for('take_profit_stop_loss.update_tpsl') }}" method="post">
+            <input type="hidden" name="symbol" value="{{ position.symbol }}">
+            <label>新止盈价格: <input type="number" name="new_take_profit" step="0.00000001"></label>
+            <label>新止损价格: <input type="number" name="new_stop_loss" step="0.00000001"></label>
+            <button type="submit">更新</button>
+        </form>
+    </div>
+    {% endfor %}
+
+    <!-- 分页 -->
+    <div>
+        {% if page > 1 %}
+        <a href="{{ url_for('take_profit_stop_loss.tpsl_positions', page=page-1) }}">上一页</a>
+        {% endif %}
+        <span>第 {{ page }} 页</span>
+        {% if page * per_page < total %}
+        <a href="{{ url_for('take_profit_stop_loss.tpsl_positions', page=page+1) }}">下一页</a>
+        {% endif %}
+    </div>
+</body>
+{% endblock %}
