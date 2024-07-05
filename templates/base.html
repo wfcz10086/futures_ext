@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}天天吃饱饭{% endblock %}</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -14,13 +15,31 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
-                {% if 'user_id' in session %}
-                <a class="nav-link" href="{{ url_for('order_management.order_management') }}">下单管理</a>
-                <a class="nav-link" href="{{ url_for('pending_order.pending_orders') }}">限价挂单管理</a>
-                <a class="nav-link" href="{{ url_for('take_profit_stop_loss.take_profit_stop_loss') }}">止盈止损管理</a>
 
-<a href="{{ url_for('get_klines.get_klines') }}" class="btn btn-primary mb-3">获取数据测试</a>
-<a href="{{ url_for('get_futures_symbols.futures_symbols') }}" class="btn btn-primary mb-3">永续</a>
+                {% if 'user_id' in session %}
+                        <a class="nav-link" href="{{ url_for('get_statistics.indicator_description') }}">指标说明</a>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('order_management.order_management') }}">下单管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('pending_order.pending_orders') }}">限价挂单管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('take_profit_stop_loss.take_profit_stop_loss') }}">止盈止损管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('get_statistics.get_statistics_page') }}">超级分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('get_klines.get_klines') }}">获取数据测试</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('get_futures_symbols.futures_symbols') }}">永续</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('position_management.position_management') }}">仓位</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('binance.list_binance_keys') }}">币安密钥</a>
                     </li>
@@ -54,9 +73,10 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    
+    {% block scripts %}{% endblock %}
 </body>
 </html>

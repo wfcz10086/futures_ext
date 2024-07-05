@@ -23,7 +23,7 @@ def pending_orders():
 
     client = get_binance_client()
     if not client:
-        return redirect(url_for('main.index'))
+        return redirect(url_for('index'))
 
     try:
         open_orders = client.futures_get_open_orders()
@@ -53,7 +53,7 @@ def pending_orders():
         current_app.logger.error(f"意外错误: {str(e)}", exc_info=True)
         flash("发生意外错误", "error")
 
-    return redirect(url_for('main.index'))
+    return redirect(url_for('index'))
 
 @pending_order_bp.route('/update_order', methods=['POST'])
 @login_required

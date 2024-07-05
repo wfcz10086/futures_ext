@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block content %}
+
+    <title>加密货币技术指标说明</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2c3e50; }
+        h2 { color: #3498db; }
+        .indicator { margin-bottom: 30px; }
+        .indicator h3 { color: #e74c3c; }
+    </style>
+<body>
+    <div class="indicator">
+        <h2>1. 日线EMA22以上比例</h2>
+        <p><strong>观测期:</strong> 100个日线蜡烛</p>
+        <p><strong>含义:</strong> 计算最近100个交易日中，收盘价高于22日指数移动平均线(EMA22)的天数比例。</p>
+        <p><strong>意义:</strong> 反映中期趋势强度。比例越高，表示上升趋势越强。</p>
+        <p><strong>解读:</strong>
+            - 0.7以上: 强势上涨趋势
+            - 0.5-0.7: 温和上涨趋势
+            - 0.3-0.5: 盘整
+            - 0.3以下: 下跌趋势
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>2. 日线EMA200以上比例</h2>
+        <p><strong>观测期:</strong> 100个日线蜡烛</p>
+        <p><strong>含义:</strong> 计算最近100个交易日中，收盘价高于200日指数移动平均线(EMA200)的天数比例。</p>
+        <p><strong>意义:</strong> 反映长期趋势强度。比例越高，表示长期上升趋势越强。</p>
+        <p><strong>解读:</strong>
+            - 0.7以上: 强势长期上涨趋势
+            - 0.5-0.7: 温和长期上涨趋势
+            - 0.3-0.5: 长期盘整
+            - 0.3以下: 长期下跌趋势
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>3. 4小时线EMA22以上比例</h2>
+        <p><strong>观测期:</strong> 100个4小时蜡烛</p>
+        <p><strong>含义:</strong> 计算最近100个4小时周期中，收盘价高于22周期指数移动平均线(EMA22)的比例。</p>
+        <p><strong>意义:</strong> 反映中短期趋势强度。</p>
+        <p><strong>解读:</strong> 同日线EMA22以上比例的解读标准</p>
+    </div>
+
+    <div class="indicator">
+        <h2>4. 1小时线EMA22以上比例</h2>
+        <p><strong>观测期:</strong> 100个1小时蜡烛</p>
+        <p><strong>含义:</strong> 计算最近100个1小时周期中，收盘价高于22周期指数移动平均线(EMA22)的比例。</p>
+        <p><strong>意义:</strong> 反映短期趋势强度。</p>
+        <p><strong>解读:</strong> 同日线EMA22以上比例的解读标准，但波动可能更大</p>
+    </div>
+
+    <div class="indicator">
+        <h2>5. 周线位置</h2>
+        <p><strong>含义:</strong> 最新日线收盘价相对于本周开盘价的位置。</p>
+        <p><strong>计算方法:</strong> 最新日线收盘价 / 本周开盘价</p>
+        <p><strong>意义:</strong> 反映本周的整体走势强弱。</p>
+        <p><strong>解读:</strong>
+            - 大于1.05: 本周强势上涨
+            - 1.01-1.05: 本周小幅上涨
+            - 0.99-1.01: 本周基本持平
+            - 0.95-0.99: 本周小幅下跌
+            - 小于0.95: 本周强势下跌
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>6. 月线位置</h2>
+        <p><strong>含义:</strong> 最新日线收盘价相对于本月开盘价的位置。</p>
+        <p><strong>计算方法:</strong> 最新日线收盘价 / 本月开盘价</p>
+        <p><strong>意义:</strong> 反映本月的整体走势强弱。</p>
+        <p><strong>解读:</strong>
+            - 大于1.10: 本月强势上涨
+            - 1.03-1.10: 本月小幅上涨
+            - 0.97-1.03: 本月基本持平
+            - 0.90-0.97: 本月小幅下跌
+            - 小于0.90: 本月强势下跌
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>7. 多时间周期EMA22位置</h2>
+        <p><strong>观测周期:</strong> 15分钟, 30分钟, 1小时, 2小时, 4小时</p>
+        <p><strong>含义:</strong> 检查最新的各时间周期蜡烛是否高于各自的EMA22。</p>
+        <p><strong>意义:</strong> 反映多个时间周期的趋势一致性。</p>
+        <p><strong>解读:</strong>
+            - 全部高于: 多周期一致看涨
+            - 4-3个高于: 偏多看涨
+            - 2个高于: 中性
+            - 1-0个高于: 偏空看跌
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>8. 1分钟K线波动性</h2>
+        <p><strong>观测期:</strong> 200个1分钟蜡烛</p>
+        <p><strong>含义:</strong> 统计1分钟K线中波动超过0.1%的蜡烛数量及其占比，并判断波动方向。</p>
+        <p><strong>意义:</strong> 反映短期市场波动强度和方向。</p>
+        <p><strong>解读:</strong>
+            - 占比大于50%: 高波动性
+            - 占比30%-50%: 中等波动性
+            - 占比小于30%: 低波动性
+            波动方向（正向/负向）表示上涨/下跌趋势
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>9. 5分钟K线波动性</h2>
+        <p><strong>观测期:</strong> 200个5分钟蜡烛</p>
+        <p><strong>含义:</strong> 统计5分钟K线中波动超过0.15%的蜡烛数量、占比及波动方向。</p>
+        <p><strong>意义:</strong> 反映短期市场波动强度和方向，时间跨度比1分钟K线更长。</p>
+        <p><strong>解读:</strong>
+            - 占比越高表示波动性越强
+            - 波动方向（正向/负向）表示上涨/下跌趋势
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>10. 15分钟MACD和EMA交叉</h2>
+        <p><strong>观测期:</strong> 300个15分钟蜡烛</p>
+        <p><strong>含义:</strong> 统计MACD金叉、死叉次数，以及EMA18和EMA36的金叉、死叉次数。</p>
+        <p><strong>意义:</strong> 反映中短期趋势变化和潜在的买卖信号。</p>
+        <p><strong>解读:</strong>
+            - MACD金叉和EMA金叉次数多：上升趋势可能较强
+            - MACD死叉和EMA死叉次数多：下降趋势可能较强
+            - 交叉次数接近：可能处于盘整状态
+        </p>
+    </div>
+
+    <div class="indicator">
+        <h2>11. 当前价格相对于各时间周期EMA22的位置</h2>
+        <p><strong>观测期:</strong> 3分钟到1天的多个时间周期</p>
+        <p><strong>含义:</strong> 检查当前价格是否高于各时间周期的EMA22。</p>
+        <p><strong>意义:</strong> 反映不同时间尺度上的价格强弱。</p>
+        <p><strong>解读:</strong>
+            - 多个周期高于EMA22：整体趋势较强
+            - 多个周期低于EMA22：整体趋势较弱
+            - 短期高于长期低于：可能处于反弹或盘整
+            - 短期低于长期高于：可能处于回调或盘整
+        </p>
+    </div>
+</body>
+
+{% endblock %}
+
+
+
+

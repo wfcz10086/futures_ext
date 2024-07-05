@@ -40,6 +40,11 @@ app.register_blueprint(pending_order_bp)
 
 from take_profit_stop_loss import take_profit_stop_loss_bp
 app.register_blueprint(take_profit_stop_loss_bp)
+from position_management  import position_management_bp
+app.register_blueprint(position_management_bp)
+
+from get_statistics  import get_statistics_bp
+app.register_blueprint(get_statistics_bp)
 
 @app.route('/')
 def index():

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}期货交易对统计{% endblock %}
+<style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2c3e50; }
+        h2 { color: #3498db; }
+        .indicator { margin-bottom: 30px; }
+        .indicator h3 { color: #e74c3c; }
+    </style>
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">期货交易对统计</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    期货交易对列表
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>交易对</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for symbol in futures_symbols %}
+                                <tr>
+                                    <td>{{ symbol.symbol }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary analyze-button" data-symbol="{{ symbol.symbol }}">
+                                            分析
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav aria-label="页面导航">
+                        {{ pagination.links }}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    分析结果
+                </div>
+                <div class="card-body">
+                    <div id="analysisResult">
+                        <p class="text-muted">选择一个交易对来查看分析结果。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded and parsed');
+    const analyzeButtons = document.querySelectorAll('.analyze-button');
+    console.log('Found analyze buttons:', analyzeButtons.length);
+    
+    analyzeButtons.forEach(button => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            const symbol = this.getAttribute('data-symbol');
+            console.log('Analyze button clicked for symbol:', symbol);
+            analyzeSymbol(symbol);
+        });
+
+        // 为每个按钮添加工具提示
+        $(button).tooltip({
+            title: "点击分析此交易对",
+            placement: "top",
+            trigger: "hover"
+        });
+    });
+
+    // 初始化所有的工具提示
+    $('[data-toggle="tooltip"]').tooltip();
+    console.log('Tooltips initialized');
+});
+
+function analyzeSymbol(symbol) {
+    console.log('Starting analysis for symbol:', symbol);
+    fetch('/analyze_symbol', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'symbol=' + encodeURIComponent(symbol)
+    })
+    .then(response => {
+        console.log('Received response from server');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Parsed response data:', data);
+        if (data.success) {
+            displayAnalysisResult(data.statistics, symbol);
+        } else {
+            displayError('错误: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error during analysis:', error);
+        displayError('发生错误。请重试。');
+    });
+}
+
+function displayAnalysisResult(statistics, symbol) {
+    console.log('Displaying analysis result for', symbol);
+    let resultHtml = `<h5 class="card-title">${symbol} 分析结果</h5>`;
+    resultHtml += '<ul class="list-group list-group-flush">';
+    
+    for (let key in statistics) {
+        if (typeof statistics[key] === 'object') {
+            resultHtml += `<li class="list-group-item"><strong>${translateKey(key)}:</strong><ul>`;
+            for (let subKey in statistics[key]) {
+                resultHtml += `<li>${translateKey(subKey)}: ${formatValue(statistics[key][subKey], subKey)}</li>`;
+            }
+            resultHtml += '</ul></li>';
+        } else {
+            resultHtml += `<li class="list-group-item"><strong>${translateKey(key)}:</strong> ${formatValue(statistics[key], key)}</li>`;
+        }
+    }
+    resultHtml += '</ul>';
+    
+    document.getElementById('analysisResult').innerHTML = resultHtml;
+    addTooltipsToResults();
+    console.log('Analysis result displayed and tooltips added');
+}
+
+function displayError(message) {
+    console.error('Displaying error message:', message);
+    document.getElementById('analysisResult').innerHTML = `<div class="alert alert-danger">${message}</div>`;
+}
+
+function translateKey(key) {
+    const translations = {
+        'symbol': '交易对',
+        'above_ema22_daily': '日线EMA22以上比例',
+        'above_ema200_daily': '日线EMA200以上比例',
+        'above_ema22_4h': '4小时EMA22以上比例',
+        'above_ema22_1h': '1小时EMA22以上比例',
+        'weekly_position': '周线位置',
+        'monthly_position': '月线位置',
+        'above_ema22': 'EMA22以上',
+        'one_min_volatility': '1分钟波动性',
+        'five_min_volatility': '5分钟波动性',
+        'fifteen_min_crossovers': '15分钟交叉',
+        'current_price_above_ema22': '当前价格高于EMA22',
+    };
+    return translations[key] || key;
+}
+
+function formatValue(value, key) {
+    console.log('Formatting value for key:', key, 'Value:', value);
+    if (typeof value === 'boolean') {
+        return value ? '<span class="badge badge-success">是</span>' : '<span class="badge badge-danger">否</span>';
+    } else if (typeof value === 'number') {
+        if (key.includes('above_ema') || key.includes('position')) {
+            return (value * 100).toFixed(2) + '%';
+        }
+    }
+    return value;
+}
+
+function addTooltipsToResults() {
+    console.log('Adding tooltips to analysis results');
+    const listItems = document.querySelectorAll('#analysisResult .list-group-item');
+    listItems.forEach(item => {
+        const key = item.querySelector('strong').textContent.replace(':', '');
+        const explanation = getExplanation(key);
+        $(item).tooltip({
+            title: explanation,
+            placement: "left",
+            trigger: "hover"
+        });
+    });
+}
+
+function getExplanation(key) {
+    const explanations = {
+        '日线EMA22以上比例': '计算逻辑：(高于EMA22的天数) / 100。过去100个日线蜡烛中，收盘价高于22日EMA的比例。高于50%表示总体上涨趋势。',
+        '日线EMA200以上比例': '计算逻辑：(高于EMA200的天数) / 100。过去100个日线蜡烛中，收盘价高于200日EMA的比例。高于50%表示长期上涨趋势。',
+        '4小时EMA22以上比例': '计算逻辑：(高于EMA22的4小时K线数) / (总4小时K线数)。4小时线中，收盘价高于22周期EMA的比例。反映中期趋势。',
+        '1小时EMA22以上比例': '计算逻辑：(高于EMA22的1小时K线数) / (总1小时K线数)。1小时线中，收盘价高于22周期EMA的比例。反映短期趋势。',
+        '周线位置': '计算逻辑：最新日线收盘价 / 本周开盘价。最新日线收盘价相对于本周开盘价的位置。大于1表示本周上涨，小于1表示下跌。',
+        '月线位置': '计算逻辑：最新日线收盘价 / 本月开盘价。最新日线收盘价相对于本月开盘价的位置。大于1表示本月上涨，小于1表示下跌。',
+        'EMA22以上': '各时间周期的最新收盘价是否高于其22周期EMA。用于判断不同时间框架的趋势。',
+        '1分钟波动性': '1分钟K线的波动情况。包括波动次数、比例和方向。计算了价格变动超过0.1%的次数及其在总观察期内的比例。',
+        '5分钟波动性': '5分钟K线的波动情况。包括波动次数、比例和方向。计算了价格变动超过0.3%的次数及其在总观察期内的比例。',
+        '15分钟交叉': '计算逻辑：统计15分钟周期内价格与EMA22的交叉次数。反映短期趋势的变化频率。交叉次数越多，表示价格波动越剧烈。',
+        '当前价格高于EMA22': '计算逻辑：检查当前价格是否高于各时间周期的EMA22。用于判断当前价格相对于趋势的位置。'
+    };
+    console.log('Getting explanation for key:', key);
+    return explanations[key] || '暂无解释';
+}
+
+// 初始化函数，可以在页面加载完成后调用
+function initializeAnalysis() {
+    console.log('Initializing analysis functionality');
+    // 这里可以添加任何需要在页面加载后执行的初始化代码
+    // 例如，为某些元素添加事件监听器，或者执行一些初始的数据加载
+}
+
+// 在页面加载完成后调用初始化函数
+document.addEventListener('DOMContentLoaded', initializeAnalysis);
+
+// 用于测试的辅助函数
+function testAnalysis(symbol) {
+    console.log('Running test analysis for symbol:', symbol);
+    analyzeSymbol(symbol);
+}
+
+// 导出函数，使其可以在控制台中访问（如果需要的话）
+window.testAnalysis = testAnalysis;
+window.analyzeSymbol = analyzeSymbol;
+
+console.log('Analysis script loaded and ready');
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+
+{% block content %}
+{% if summary is defined %}
+<div class="container mt-5">
+    <h1 class="mb-4">仓位管理</h1>
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">账户摘要</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <h6 class="text-muted">总持仓价值</h6>
+                    <h5>{{ "%.2f"|format(summary.totalPositionValue) }} USDT</h5>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h6 class="text-muted">总保证金</h6>
+                    <h5>{{ "%.2f"|format(summary.totalMargin) }} USDT</h5>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h6 class="text-muted">总未实现盈亏</h6>
+                    <h5>{{ "%.2f"|format(summary.totalPnl) }} USDT</h5>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h6 class="text-muted">可用余额</h6>
+                    <h5>{{ "%.2f"|format(summary.availableBalance) }} USDT</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if positions %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th>交易对</th>
+                    <th>杠杆</th>
+                    <th>持仓量</th>
+                    <th>持仓价值</th>
+                    <th>保证金</th>
+                    <th>入场价</th>
+                    <th>标记价</th>
+                    <th>未实现盈亏</th>
+                    <th>盈利百分比</th>
+                    <th>收益率</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for position in positions %}
+                <tr>
+                    <td>{{ position.symbol }}</td>
+                    <td>{{ position.leverage }}x</td>
+                    <td>{{ "%.4f"|format(position.positionAmt) }}</td>
+                    <td>{{ "%.2f"|format(position.positionValue) }}</td>
+                    <td>{{ "%.2f"|format(position.margin) }}</td>
+                    <td>{{ "%.4f"|format(position.entryPrice) }}</td>
+                    <td>{{ "%.4f"|format(position.markPrice) }}</td>
+                    <td>{{ "%.2f"|format(position.unrealizedPnl) }}</td>
+                    <td>{{ "%.2f"|format(position.pnlPercentage) }}%</td>
+                    <td>{{ "%.2f"|format(position.roi) }}%</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-danger" onclick="closePosition('{{ position.symbol }}', 'market')">市价平仓</button>
+                            <button class="btn btn-sm btn-warning" onclick="showLimitCloseDialog('{{ position.symbol }}')">限价平仓</button>
+                            <button class="btn btn-sm btn-info" onclick="showMarginDialog('{{ position.symbol }}')">调整保证金</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        当前没有持仓。
+    </div>
+    {% endif %}
+
+    <script>
+        function closePosition(symbol, type) {
+            if (type === 'market') {
+                if (confirm('确定要市价平仓吗？')) {
+                    // 发送市价平仓请求
+                    fetch("{{ url_for('position_management.close_position') }}", {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: `symbol=${symbol}&close_type=market`
+                    }).then(response => response.json())
+                      .then(data => {
+                          alert(data.message);
+                          location.reload();
+                      });
+                }
+            }
+        }
+
+        function showLimitCloseDialog(symbol) {
+            const price = prompt('请输入限价平仓价格：');
+            if (price) {
+                // 发送限价平仓请求
+                fetch("{{ url_for('position_management.close_position') }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `symbol=${symbol}&close_type=limit&price=${price}`
+                }).then(response => response.json())
+                  .then(data => {
+                      alert(data.message);
+                      location.reload();
+                  });
+            }
+        }
+
+        function showMarginDialog(symbol) {
+            const amount = prompt('请输入调整保证金数量（正数增加，负数减少）：');
+            if (amount) {
+                const type = parseFloat(amount) > 0 ? 'ADD' : 'REMOVE';
+                // 发送调整保证金请求
+                fetch("{{ url_for('position_management.adjust_margin') }}", {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `symbol=${symbol}&amount=${Math.abs(amount)}&type=${type}`
+                }).then(response => response.json())
+                  .then(data => {
+                      alert(data.message);
+                      location.reload();
+                  });
+            }
+        }
+    </script>
+</div>
+{% else %}
+<script>
+    window.location.href = "{{ url_for('index') }}";
+</script>
+{% endif %}
+{% endblock %}
