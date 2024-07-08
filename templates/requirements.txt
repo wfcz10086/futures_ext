@@ -1,0 +1,13 @@
+Flask
+Flask-SQLAlchemy
+Flask-WTF
+WTForms
+Werkzeug
+redis
+gunicorn
+psycopg2-binary
+requests
+celery
+blinker
+email_validator
+uvicorn

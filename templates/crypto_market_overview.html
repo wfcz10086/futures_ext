@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>加密货币市场概览</h1>
+
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>交易对</th>
+            <th>2小时涨跌</th>
+            <th>4小时涨跌</th>
+            <th>6小时涨跌</th>
+            <th>12小时涨跌</th>
+            <th>24小时涨跌</th>
+            <th>2小时EMA22</th>
+            <th>4小时EMA22</th>
+            <th>6小时EMA22</th>
+            <th>12小时EMA22</th>
+            <th>24小时EMA22</th>
+            <th>1小时EMA22以上</th>
+            <th>4小时EMA22以上</th>
+            <th>日线EMA22以上</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for data in market_data %}
+        <tr>
+            <td>{{ data.symbol }}</td>
+            {% for interval in ['2h', '4h', '6h', '12h', '24h'] %}
+                <td class="{{ 'text-success' if data.price_changes[interval] > 0 else 'text-danger' }}">
+                    {{ data.price_changes[interval] }}%
+                </td>
+            {% endfor %}
+            {% for interval in ['2h', '4h', '6h', '12h', '24h'] %}
+                <td class="{{ 'text-success' if data.ema_status[interval] == 'Above EMA22' else 'text-danger' }}">
+                    {{ '高于EMA22' if data.ema_status[interval] == 'Above EMA22' else '低于EMA22' }}
+                </td>
+            {% endfor %}
+            <td>{{ data.ema_above_count['hourly'] }}/200</td>
+            <td>{{ data.ema_above_count['four_hour'] }}/200</td>
+            <td>{{ data.ema_above_count['daily'] }}/200</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('.table').DataTable({
+            pageLength: 15,
+            lengthMenu: [[15, 30, 50, -1], [15, 30, 50, "全部"]],
+            language: {
+                "sProcessing": "处理中...",
+                "sLengthMenu": "显示 _MENU_ 项结果",
+                "sZeroRecords": "没有匹配结果",
+                "sInfo": "显示第 _START_ 至 _END_ 项结果，共 _TOTAL_ 项",
+                "sInfoEmpty": "显示第 0 至 0 项结果，共 0 项",
+                "sInfoFiltered": "(由 _MAX_ 项结果过滤)",
+                "sInfoPostFix": "",
+                "sSearch": "搜索:",
+                "sUrl": "",
+                "sEmptyTable": "表中数据为空",
+                "sLoadingRecords": "载入中...",
+                "sInfoThousands": ",",
+                "oPaginate": {
+                    "sFirst": "首页",
+                    "sPrevious": "上页",
+                    "sNext": "下页",
+                    "sLast": "末页"
+                },
+                "oAria": {
+                    "sSortAscending": ": 以升序排列此列",
+                    "sSortDescending": ": 以降序排列此列"
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
