@@ -35,6 +35,7 @@ from take_profit_stop_loss import take_profit_stop_loss_bp
 from position_management import position_management_bp
 from get_statistics import get_statistics_bp
 from get_statistics_all import get_statistics_all_bp
+from altcoin_season import altcoin_season_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(binance_bp)
@@ -47,6 +48,8 @@ app.register_blueprint(take_profit_stop_loss_bp)
 app.register_blueprint(position_management_bp)
 app.register_blueprint(get_statistics_bp)
 app.register_blueprint(get_statistics_all_bp)
+app.register_blueprint(altcoin_season_bp)
+
 
 @app.route('/')
 def index():

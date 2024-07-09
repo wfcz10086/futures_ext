@@ -1,6 +1,16 @@
-# 天天吃饱饭
+#!/bin/bash
 
-这是一个基于 Flask 的期货交易精细化系统，集成了 Binance API，提供了数据分析、盈利管理、仓位管理、模拟仓位等功能。
+# 设置变量
+PROJECT_NAME="天天吃饱饭"
+DESCRIPTION="这是一个基于 Flask 的期货交易精细化系统，集成了 Binance API，提供了数据分析、盈利管理、仓位管理、模拟仓位等功能。"
+PYTHON_VERSION="Python 3.7+"
+MAIN_FILE="app.py"
+
+# 创建 README.md 文件
+cat > README.md << EOF
+# ${PROJECT_NAME}
+
+${DESCRIPTION}
 
 ## 功能特性
 
@@ -20,28 +30,28 @@
 - PyMySQL: MySQL 数据库连接器
 - Binance API: 用于与 Binance 交易所交互
 
-详细的依赖列表请参考 `requirements.txt` 文件。
+详细的依赖列表请参考 \`requirements.txt\` 文件。
 
 ## 安装依赖
 
-在开始之前，请确保您已安装 Python 3.7+。然后，按照以下步骤安装所需依赖：
+在开始之前，请确保您已安装 ${PYTHON_VERSION}。然后，按照以下步骤安装所需依赖：
 
 1. 克隆项目到本地：
 
-   ```
+   \`\`\`
    git clone [您的项目 URL]
    cd [项目目录]
-   ```
+   \`\`\`
 
 2. 安装所需的 Python 包：
 
-   ```
+   \`\`\`
    pip install -r requirements.txt
-   ```
+   \`\`\`
 
 ## 项目结构
 
-```
+\`\`\`
 ./
 ├── app.py                    # 主应用文件
 ├── app.pybak                 # 主应用文件备份
@@ -63,7 +73,7 @@
 ├── setup_数据分析.sh          # 数据分析设置脚本
 ├── take_profit_stop_loss.py  # 止盈止损设置
 └── templates/                # HTML 模板目录
-```
+\`\`\`
 
 ## 模块说明
 
@@ -82,72 +92,72 @@
 ## 配置
 
 1. 数据库配置：
-   在 `app.py` 中，修改 `SQLALCHEMY_DATABASE_URI` 以匹配您的数据库设置。
+   在 \`${MAIN_FILE}\` 中，修改 \`SQLALCHEMY_DATABASE_URI\` 以匹配您的数据库设置。
 
 2. 密钥配置：
-   修改 `SECRET_KEY` 为一个安全的随机字符串。
+   修改 \`SECRET_KEY\` 为一个安全的随机字符串。
 
 3. Binance API 配置：
-   在 `binance_module.py` 中设置您的 Binance API 密钥和密钥。
+   在 \`binance_module.py\` 中设置您的 Binance API 密钥和密钥。
 
 ## 运行应用
 
 使用提供的 run.sh 脚本运行应用：
 
-```
+\`\`\`
 ./run.sh
-```
+\`\`\`
 
 或者直接运行 Python 文件：
 
-```
-python app.py
-```
+\`\`\`
+python ${MAIN_FILE}
+\`\`\`
 
 ## 数据分析设置
 
-使用 `setup_数据分析.sh` 脚本来设置数据分析环境：
+使用 \`setup_数据分析.sh\` 脚本来设置数据分析环境：
 
-```
+\`\`\`
 ./setup_数据分析.sh
-```
+\`\`\`
 
 ## 开发指南
 
 ### 导入新模板
 
-1. 在 `templates` 目录下创建新的 HTML 文件。
+1. 在 \`templates\` 目录下创建新的 HTML 文件。
 
-2. 在相应的路由函数中使用 `render_template` 渲染模板：
+2. 在相应的路由函数中使用 \`render_template\` 渲染模板：
 
-   ```python
+   \`\`\`python
    from flask import render_template
 
    @app.route('/new_page')
    def new_page():
        return render_template('new_page.html')
-   ```
+   \`\`\`
 
-3. 如果需要在模板中使用变量，可以在 `render_template` 函数中传递：
+3. 如果需要在模板中使用变量，可以在 \`render_template\` 函数中传递：
 
-   ```python
+   \`\`\`python
    @app.route('/greeting/<name>')
    def greeting(name):
        return render_template('greeting.html', name=name)
-   ```
+   \`\`\`
 
-   在 `greeting.html` 中：
-   ```html
+   在 \`greeting.html\` 中：
+   \`\`\`html
    <h1>Hello, {{ name }}!</h1>
-   ```
+   \`\`\`
 
 ### 开发新模块
 
-1. 创建新的 Python 文件，例如 `new_module.py`。
+1. 创建新的 Python 文件，例如 \`new_module.py\`。
 
 2. 在新模块中定义必要的函数和类：
 
-   ```python
+   \`\`\`python
    # new_module.py
    
    def new_function():
@@ -157,18 +167,18 @@ python app.py
    class NewClass:
        # 类实现
        pass
-   ```
+   \`\`\`
 
-3. 在主应用文件（`app.py`）或其他相关模块中导入新模块：
+3. 在主应用文件（\`app.py\`）或其他相关模块中导入新模块：
 
-   ```python
+   \`\`\`python
    from new_module import new_function, NewClass
-   ```
+   \`\`\`
 
 4. 如果新模块包含路由，可以使用 Flask 的蓝图功能：
 
-   在 `new_module.py` 中：
-   ```python
+   在 \`new_module.py\` 中：
+   \`\`\`python
    from flask import Blueprint
 
    new_module_bp = Blueprint('new_module', __name__)
@@ -176,21 +186,21 @@ python app.py
    @new_module_bp.route('/new_route')
    def new_route():
        return "This is a new route"
-   ```
+   \`\`\`
 
-   在 `app.py` 中注册蓝图：
-   ```python
+   在 \`app.py\` 中注册蓝图：
+   \`\`\`python
    from new_module import new_module_bp
    app.register_blueprint(new_module_bp)
-   ```
+   \`\`\`
 
-5. 如果新模块需要访问数据库或其他 Flask 扩展，可以从 `extensions.py` 中导入：
+5. 如果新模块需要访问数据库或其他 Flask 扩展，可以从 \`extensions.py\` 中导入：
 
-   ```python
+   \`\`\`python
    from extensions import db
-   ```
+   \`\`\`
 
-6. 更新 `requirements.txt`：如果新模块需要额外的依赖，确保将它们添加到 `requirements.txt` 文件中。
+6. 更新 \`requirements.txt\`：如果新模块需要额外的依赖，确保将它们添加到 \`requirements.txt\` 文件中。
 
 7. 文档化：在本 README 文件中添加新模块的说明，并在代码中添加适当的注释和文档字符串。
 
@@ -199,7 +209,7 @@ python app.py
 ## 注意事项
 
 - 确保所有的 .py 文件都有正确的执行权限。
-- 在生产环境中部署时，请确保关闭调试模式（`debug=False`）。
+- 在生产环境中部署时，请确保关闭调试模式（\`debug=False\`）。
 - 定期更新依赖包以获取最新的安全补丁。
 - 确保妥善保管所有敏感信息，如数据库凭证和 API 密钥。
 - 考虑使用环境变量来存储敏感配置，而不是直接在代码中硬编码。
@@ -211,3 +221,6 @@ python app.py
 ## 许可证
 
 [MIT](https://choosealicense.com/licenses/mit/)
+EOF
+
+echo "README.md 文件已生成。"

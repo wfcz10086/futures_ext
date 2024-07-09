@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+    .container {
+        max-width: 1200px;
+    }
+    .card {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: 0.3s;
+    }
+    .card:hover {
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    .card-title {
+        color: #007bff;
+        font-weight: bold;
+    }
+    .highlight {
+        font-weight: bold;
+        color: #28a745;
+    }
+    .negative {
+        color: #dc3545;
+    }
+    .pagination {
+        margin-top: 20px;
+    }
+    #startAnalysisBtn {
+        transition: all 0.3s ease;
+    }
+    #startAnalysisBtn:hover {
+        transform: scale(1.05);
+    }
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">山寨季预测分析</h1>
+
+    <div class="row mb-4 justify-content-center">
+        <div class="col-12 col-md-6 text-center">
+            <button id="startAnalysisBtn" class="btn btn-primary btn-lg">
+                <span id="btnText">开始分析</span>
+                <span id="loadingSpinner" class="loading" style="display: none;"></span>
+            </button>
+            <p id="analysisNote" class="mt-2 text-muted" style="display: none;">实时计算数据需要约30秒，请耐心等待，勿重复点击。</p>
+        </div>
+    </div>
+
+    <div id="analysisResults" style="display: none;">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">山寨季指标</h5>
+                        <p>山寨季指数: <span id="altcoinSeasonIndex" class="highlight"></span></p>
+                        <p>表现优于比特币的山寨币比例: <span id="altcoinPerformance" class="highlight"></span>%</p>
+                        <p>ETH/BTC 比率: <span id="ethBtcRatio" class="highlight"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">表现最佳的币种</h5>
+                        <div id="topPerformers"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">成交量趋势</h5>
+                        <p>山寨币平均成交量 / 比特币成交量: <span id="volumeTrends" class="highlight"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">表现最佳的板块</h5>
+                        <ul id="topSectors" class="list-unstyled"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-3 text-center">币种详情</h2>
+                <div id="coinDetails"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var startAnalysisBtn = document.getElementById('startAnalysisBtn');
+    var btnText = document.getElementById('btnText');
+    var loadingSpinner = document.getElementById('loadingSpinner');
+    var analysisNote = document.getElementById('analysisNote');
+    
+    startAnalysisBtn.addEventListener('click', function() {
+        this.disabled = true;
+        btnText.style.display = 'none';
+        loadingSpinner.style.display = 'inline-block';
+        analysisNote.style.display = 'block';
+        
+        fetch('/analyze_altcoin_season', {
+            method: 'POST',
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayResults(data.data);
+            } else {
+                alert('分析失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('请求失败，请稍后重试');
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            startAnalysisBtn.disabled = false;
+            btnText.style.display = 'inline';
+            loadingSpinner.style.display = 'none';
+            analysisNote.style.display = 'none';
+        });
+    });
+
+    let globalCoinData = [];
+    let currentPage = 1;
+
+    function displayResults(data) {
+        if (!data) {
+            alert('没有收到有效的数据');
+            return;
+        }
+
+        function safeSetText(id, value, defaultValue = '0', decimals = 2) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value !== undefined && value !== null ? parseFloat(value).toFixed(decimals) : defaultValue;
+            }
+        }
+
+        safeSetText('altcoinSeasonIndex', data.altcoin_season_index);
+        safeSetText('altcoinPerformance', data.altcoin_performance);
+        safeSetText('ethBtcRatio', data.eth_btc_ratio, '0', 4);
+        safeSetText('volumeTrends', data.volume_trends, '0', 4);
+
+        var topPerformers = document.getElementById('topPerformers');
+        topPerformers.innerHTML = '';
+        for (let period in data.top_performers) {
+            let periodDiv = document.createElement('div');
+            periodDiv.innerHTML = `<h6 class="mt-3">${period}:</h6>`;
+            let ul = document.createElement('ul');
+            ul.className = 'list-unstyled';
+            data.top_performers[period].forEach(function(coin) {
+                let li = document.createElement('li');
+                li.innerHTML = `<strong>${coin.symbol}</strong>: <span class="${coin.performance >= 0 ? 'highlight' : 'negative'}">${parseFloat(coin.performance).toFixed(2)}%</span>`;
+                ul.appendChild(li);
+            });
+            periodDiv.appendChild(ul);
+            topPerformers.appendChild(periodDiv);
+        }
+
+        var topSectors = document.getElementById('topSectors');
+        topSectors.innerHTML = '';
+        if (Array.isArray(data.top_sectors)) {
+            data.top_sectors.forEach(function(sector) {
+                var li = document.createElement('li');
+                li.innerHTML = `<strong>${sector.sector}</strong>: <span class="${sector.performance >= 0 ? 'highlight' : 'negative'}">${parseFloat(sector.performance).toFixed(2)}%</span>`;
+                topSectors.appendChild(li);
+            });
+        } else {
+            topSectors.innerHTML = '<li>没有可用的数据</li>';
+        }
+
+        globalCoinData = data.coin_data;
+        displayCoinDetails(globalCoinData, currentPage);
+
+        document.getElementById('analysisResults').style.display = 'block';
+    }
+
+    function displayCoinDetails(coinData, page = 1, itemsPerPage = 5) {
+        var coinDetailsDiv = document.getElementById('coinDetails');
+        coinDetailsDiv.innerHTML = '';
+
+        if (!Array.isArray(coinData) || coinData.length === 0) {
+            coinDetailsDiv.innerHTML = '<p class="text-center">没有可用的币种数据</p>';
+            return;
+        }
+
+        function safeGetValue(obj, path, defaultValue = '0') {
+            const value = path.split('.').reduce((acc, part) => acc && acc[part], obj);
+            return value !== undefined && value !== null ? parseFloat(value).toFixed(2) : defaultValue;
+        }
+
+        const startIndex = (page - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const paginatedData = coinData.slice(startIndex, endIndex);
+
+        paginatedData.forEach(function(coin) {
+            var coinCard = document.createElement('div');
+            coinCard.className = 'card mb-3';
+            
+            coinCard.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title">${coin.symbol || 'Unknown'}</h5>
+                    <p>当前价格: $<span class="highlight">${safeGetValue(coin, 'current_price')}</span></p>
+                    <p>24小时涨跌幅: <span class="${coin.price_change_24h >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_change_24h')}%</span></p>
+                    <p>3天涨跌幅: <span class="${coin.price_changes['3d'] >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_changes.3d')}%</span></p>
+                    <p>7天涨跌幅: <span class="${coin.price_changes['7d'] >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_changes.7d')}%</span></p>
+                    <p>15天涨跌幅: <span class="${coin.price_changes['15d'] >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_changes.15d')}%</span></p>
+                    <p>30天涨跌幅: <span class="${coin.price_changes['30d'] >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_changes.30d')}%</span></p>
+                    <p>60天涨跌幅: <span class="${coin.price_changes['60d'] >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_changes.60d')}%</span></p>
+                    <p>180天涨跌幅: <span class="${coin.price_changes['180d'] >= 0 ? 'highlight' : 'negative'}">${safeGetValue(coin, 'price_changes.180d')}%</span></p>
+                </div>
+            `;
+            coinDetailsDiv.appendChild(coinCard);
+        });
+
+        const totalPages = Math.ceil(coinData.length / itemsPerPage);
+        const paginationDiv = document.createElement('div');
+        paginationDiv.className = 'pagination justify-content-center';
+        paginationDiv.innerHTML = `
+            <button class="btn btn-primary mr-2" ${page === 1 ? 'disabled' : ''} onclick="changePage(${page - 1})">上一页</button>
+            <span class="align-self-center">第 ${page} 页，共 ${totalPages} 页</span>
+            <button class="btn btn-primary ml-2" ${page === totalPages ? 'disabled' : ''} onclick="changePage(${page + 1})">下一页</button>
+        `;
+        coinDetailsDiv.appendChild(paginationDiv);
+    }
+
+    window.changePage = function(newPage) {
+        currentPage = newPage;
+        displayCoinDetails(globalCoinData, currentPage);
+    }
+});
+</script>
+{% endblock %}
