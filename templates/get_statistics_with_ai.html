@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}AI 分析统计{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f5f5;
+        color: #333;
+    }
+    .container {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+    h1, h2, h3 {
+        color: #2c3e50;
+    }
+    .form-control, .btn {
+        border-radius: 4px;
+    }
+    .btn-primary {
+        background-color: #3498db;
+        border-color: #3498db;
+    }
+    .btn-primary:hover {
+        background-color: #2980b9;
+        border-color: #2980b9;
+    }
+    .loading {
+        display: none;
+        color: #3498db;
+    }
+    .statistics-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .statistics-table th,
+    .statistics-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .statistics-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        text-align: left;
+    }
+    .statistics-table tr:last-child td {
+        border-bottom: none;
+    }
+    .alert {
+        border-radius: 4px;
+    }
+    .pagination {
+        justify-content: center;
+    }
+    .pagination .page-link {
+        color: #3498db;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: #3498db;
+        border-color: #3498db;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">AI 分析统计</h1>
+    
+    {% if not binance_keys %}
+    <div class="alert alert-warning" role="alert">
+        您还没有添加 Binance API 密钥。请先添加密钥才能使用此功能。
+    </div>
+    {% else %}
+    <form id="analyzeForm">
+        <div class="form-group">
+            <label for="symbol">交易对</label>
+            <select class="form-control" id="symbol" name="symbol" required>
+                {% for symbol in futures_symbols %}
+                <option value="{{ symbol.symbol }}">{{ symbol.symbol }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">分析</button>
+    </form>
+
+    <div class="loading mt-3">
+        <div class="spinner-border" role="status">
+            <span class="sr-only">加载中...</span>
+        </div>
+        <span class="ml-2">正在分析，请稍候...</span>
+    </div>
+
+    <div id="result" class="mt-4"></div>
+
+    {% if pagination %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination">
+            {{ pagination.links }}
+        </ul>
+    </nav>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $(document).ready(function() {
+        $('#analyzeForm').submit(function(e) {
+            e.preventDefault();
+            $('.loading').show();
+            $('#result').empty();
+
+            $.ajax({
+                url: '{{ url_for("get_statistics_with_ai.analyze_symbol_with_ai") }}',
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    $('.loading').hide();
+                    if (response.success) {
+                        let resultHtml = '<h2 class="mt-4">分析结果</h2>';
+                        resultHtml += '<h3 class="mt-3">统计数据</h3>';
+                        resultHtml += formatStatistics(response.statistics);
+                        resultHtml += '<h3 class="mt-4">AI 建议</h3>';
+                        resultHtml += '<p>' + response.ai_suggestion.replace(/\n/g, '<br>') + '</p>';
+                        $('#result').html(resultHtml);
+                    } else {
+                        $('#result').html('<div class="alert alert-danger">' + response.error + '</div>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('.loading').hide();
+                    $('#result').html('<div class="alert alert-danger">发生错误: ' + error + '</div>');
+                }
+            });
+        });
+
+        function formatStatistics(statistics) {
+            let html = '<table class="statistics-table">';
+            html += '<tr><th>指标</th><th>值</th></tr>';
+            
+            html += `<tr><td>交易对</td><td>${statistics.symbol}</td></tr>`;
+            html += `<tr><td>日线EMA22上方比例</td><td>${(statistics.above_ema22_daily * 100).toFixed(2)}%</td></tr>`;
+            html += `<tr><td>日线EMA200上方比例</td><td>${(statistics.above_ema200_daily * 100).toFixed(2)}%</td></tr>`;
+            html += `<tr><td>4小时EMA22上方比例</td><td>${(statistics.above_ema22_4h * 100).toFixed(2)}%</td></tr>`;
+            html += `<tr><td>1小时EMA22上方比例</td><td>${(statistics.above_ema22_1h * 100).toFixed(2)}%</td></tr>`;
+            html += `<tr><td>相对周线开盘价位置</td><td>${(statistics.weekly_position * 100).toFixed(2)}%</td></tr>`;
+            html += `<tr><td>相对月线开盘价位置</td><td>${(statistics.monthly_position * 100).toFixed(2)}%</td></tr>`;
+            
+            html += '<tr><td>短周期EMA22穿越情况</td><td>';
+            for (let [key, value] of Object.entries(statistics.above_ema22)) {
+                html += `${key}: ${value ? '上方' : '下方'}<br>`;
+            }
+            html += '</td></tr>';
+
+            html += `<tr><td>1分钟K线波动性</td><td>${statistics.one_min_volatility.toFixed(6)}</td></tr>`;
+            html += `<tr><td>5分钟K线波动性</td><td>${statistics.five_min_volatility.toFixed(6)}</td></tr>`;
+            html += `<tr><td>15分钟MACD交叉次数</td><td>${statistics.fifteen_min_crossovers}</td></tr>`;
+
+            html += '<tr><td>当前价格相对EMA22位置</td><td>';
+            for (let [key, value] of Object.entries(statistics.current_price_above_ema22)) {
+                html += `${key}: ${value ? '上方' : '下方'}<br>`;
+            }
+            html += '</td></tr>';
+
+            html += '</table>';
+            return html;
+        }
+    });
+</script>
+{% endblock %}
