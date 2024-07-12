@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block head %}
+<link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/3.7.0/chart.min.js" defer></script>
+<style>
+    .chart-container {
+        position: relative;
+        height: 40vh;
+        width: 80vw;
+        margin: auto;
+    }
+    .form-container {
+        max-width: 600px;
+        margin: auto;
+    }
+    .table-container {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">资金流水管理</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="form-container">
+        <form id="fund-flow-form" method="post" action="{{ url_for('fund_flow.fund_flow') }}">
+            <div class="form-row">
+                <div class="col-md-5 mb-3">
+                    <label for="start_time">开始时间</label>
+                    <input type="date" class="form-control" id="start_time" name="start_time" required>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label for="end_time">结束时间</label>
+                    <input type="date" class="form-control" id="end_time" name="end_time" required>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">更新资金流水</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="chart-container mt-5">
+        <canvas id="fundFlowChart"></canvas>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-3">
+            <select id="income-type-filter" class="form-control">
+                <option value="">所有类型</option>
+                {% for income_type in income_types %}
+                    <option value="{{ income_type }}">{{ income_type }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>类型</th>
+                    <th>收入</th>
+                    <th>资产</th>
+                    <th>时间</th>
+                    <th>交易对</th>
+                    <th>信息</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in fund_flows %}
+                    <tr>
+                        <td>{{ item.income_type }}</td>
+                        <td>{{ item.income }}</td>
+                        <td>{{ item.asset }}</td>
+                        <td>{{ item.time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ item.symbol or '-' }}</td>
+                        <td>{{ item.info or '-' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+              {% if pagination %}       
+                {% for page in pagination.iter_pages() %}
+                    {% if page %}
+                        {% if page != pagination.page %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('fund_flow.fund_flow', page=page) }}">{{ page }}</a></li>
+                        {% else %}
+                            <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+              {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<script>
+    let chart;
+
+    function updateChart(data) {
+        const ctx = document.getElementById('fundFlowChart').getContext('2d');
+        const labels = data.map(item => `${item.week_start.slice(0, 10)} to ${item.week_end.slice(0, 10)}`);
+        const datasets = Object.keys(data[0].data).map(key => ({
+            label: key,
+            data: data.map(item => item.data[key] || 0),
+            fill: false,
+            borderColor: getRandomColor(),
+            tension: 0.1
+        }));
+
+        if (chart) {
+            chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
+    document.getElementById('income-type-filter').addEventListener('change', function() {
+        window.location.href = "{{ url_for('fund_flow.fund_flow') }}?income_type=" + this.value;
+    });
+
+    // 初始化图表
+    updateChart({{ summary_data | tojson | safe }});
+</script>
+{% endblock %}

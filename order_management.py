@@ -192,6 +192,7 @@ def place_order(symbol):
         # Set margin type to ISOLATED
         logger.info(f"Setting margin type to ISOLATED for {symbol}")
         try:
+
             client.futures_change_margin_type(symbol=symbol, marginType='ISOLATED')
         except BinanceAPIException as margin_error:
             if margin_error.code == -4046:

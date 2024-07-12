@@ -75,80 +75,112 @@ def analyze_symbol_with_ai():
         return jsonify(success=False, error=f"分析交易对时发生错误: {str(e)}"), 500
 
 def calculate_symbol_statistics(client, symbol):
-    daily_klines = get_kline_data(client, symbol, "1d", 200)
-    four_hour_klines = get_kline_data(client, symbol, "4h", 200)
-    one_hour_klines = get_kline_data(client, symbol, "1h", 200)
-    fifteen_min_klines = get_kline_data(client, symbol, "15m", 200)
-    five_min_klines = get_kline_data(client, symbol, "5m", 200)
-    one_min_klines = get_kline_data(client, symbol, "1m", 200)
-    weekly_klines = get_kline_data(client, symbol, "1w", 1)
-    monthly_klines = get_kline_data(client, symbol, "1M", 1)
+    intervals = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "1w", "1M"]
+    klines_data = {interval: get_kline_data(client, symbol, interval, 200) for interval in intervals}
+    
+    closes = {interval: np.array([float(k[4]) for k in klines]) for interval, klines in klines_data.items()}
+    highs = {interval: np.array([float(k[2]) for k in klines]) for interval, klines in klines_data.items()}
+    lows = {interval: np.array([float(k[3]) for k in klines]) for interval, klines in klines_data.items()}
+    current_price = float(closes['1m'][-1])
 
-    daily_closes = np.array([float(k[4]) for k in daily_klines])
-    four_hour_closes = np.array([float(k[4]) for k in four_hour_klines])
-    one_hour_closes = np.array([float(k[4]) for k in one_hour_klines])
-    fifteen_min_closes = np.array([float(k[4]) for k in fifteen_min_klines])
-    five_min_closes = np.array([float(k[4]) for k in five_min_klines])
-    one_min_closes = np.array([float(k[4]) for k in one_min_klines])
+    ema22 = {interval: talib.EMA(closes[interval], timeperiod=22) for interval in intervals}
+    ema200 = talib.EMA(closes['1d'], timeperiod=200)
 
-    current_price = float(daily_closes[-1])
-    weekly_open = float(weekly_klines[0][1])
-    monthly_open = float(monthly_klines[0][1])
+    above_ema22 = {interval: float(np.sum(closes[interval] > ema22[interval]) / len(closes[interval])) for interval in intervals}
+    above_ema200 = float(np.sum(closes['1d'] > ema200) / len(closes['1d']))
 
-    daily_ema22 = talib.EMA(daily_closes, timeperiod=22)
-    daily_ema200 = talib.EMA(daily_closes, timeperiod=200)
-    four_hour_ema22 = talib.EMA(four_hour_closes, timeperiod=22)
-    one_hour_ema22 = talib.EMA(one_hour_closes, timeperiod=22)
-    fifteen_min_ema22 = talib.EMA(fifteen_min_closes, timeperiod=22)
-    five_min_ema22 = talib.EMA(five_min_closes, timeperiod=22)
-    one_min_ema22 = talib.EMA(one_min_closes, timeperiod=22)
+    weekly_open = float(klines_data['1w'][0][1])
+    monthly_open = float(klines_data['1M'][0][1])
 
-    above_ema22_daily = sum(daily_closes > daily_ema22) / len(daily_closes)
-    above_ema200_daily = sum(daily_closes > daily_ema200) / len(daily_closes)
-    above_ema22_4h = sum(four_hour_closes > four_hour_ema22) / len(four_hour_closes)
-    above_ema22_1h = sum(one_hour_closes > one_hour_ema22) / len(one_hour_closes)
+    weekly_position = float((current_price - weekly_open) / weekly_open * 100)
+    monthly_position = float((current_price - monthly_open) / monthly_open * 100)
 
-    weekly_position = (current_price - weekly_open) / weekly_open
-    monthly_position = (current_price - monthly_open) / monthly_open
-
-    above_ema22 = {
-        "15min": fifteen_min_closes[-1] > fifteen_min_ema22[-1],
-        "5min": five_min_closes[-1] > five_min_ema22[-1],
-        "1min": one_min_closes[-1] > one_min_ema22[-1]
+    volatility = {
+        '1m': calculate_volatility(closes['1m']),
+        '5m': calculate_volatility(closes['5m'])
     }
 
-    one_min_volatility = np.std(np.diff(one_min_closes) / one_min_closes[:-1])
-    five_min_volatility = np.std(np.diff(five_min_closes) / five_min_closes[:-1])
+    macd, signal, _ = talib.MACD(closes['15m'])
+    crossovers = calculate_crossovers(macd, signal)
 
-    fifteen_min_macd, fifteen_min_signal, _ = talib.MACD(fifteen_min_closes)
-    fifteen_min_crossovers = sum((fifteen_min_macd[i-1] <= fifteen_min_signal[i-1] and 
-                                  fifteen_min_macd[i] > fifteen_min_signal[i]) or
-                                 (fifteen_min_macd[i-1] >= fifteen_min_signal[i-1] and 
-                                  fifteen_min_macd[i] < fifteen_min_signal[i])
-                                 for i in range(1, len(fifteen_min_macd)))
+    current_price_above_ema22 = {interval: bool(current_price > ema22[interval][-1]) for interval in intervals}
 
-    current_price_above_ema22 = {
-        "1d": current_price > daily_ema22[-1],
-        "4h": current_price > four_hour_ema22[-1],
-        "1h": current_price > one_hour_ema22[-1],
-        "15min": current_price > fifteen_min_ema22[-1],
-        "5min": current_price > five_min_ema22[-1],
-        "1min": current_price > one_min_ema22[-1]
-    }
+    td9 = {interval: calculate_td9(highs[interval], lows[interval], closes[interval]) for interval in intervals}
 
     return {
         "symbol": symbol,
-        "above_ema22_daily": float(above_ema22_daily),
-        "above_ema200_daily": float(above_ema200_daily),
-        "above_ema22_4h": float(above_ema22_4h),
-        "above_ema22_1h": float(above_ema22_1h),
-        "weekly_position": float(weekly_position),
-        "monthly_position": float(monthly_position),
-        "above_ema22": {k: bool(v) for k, v in above_ema22.items()},
-        "one_min_volatility": float(one_min_volatility),
-        "five_min_volatility": float(five_min_volatility),
-        "fifteen_min_crossovers": int(fifteen_min_crossovers),
-        "current_price_above_ema22": {k: bool(v) for k, v in current_price_above_ema22.items()}
+        "current_price": current_price,
+        "above_ema22": above_ema22,
+        "above_ema200_daily": above_ema200,
+        "weekly_position": weekly_position,
+        "monthly_position": monthly_position,
+        "volatility": volatility,
+        "fifteen_min_crossovers": crossovers,
+        "current_price_above_ema22": current_price_above_ema22,
+        "td9": td9
+    }
+
+def calculate_volatility(closes):
+    volatility = float(np.std(np.diff(closes) / closes[:-1]))
+    direction = "正向" if closes[-1] > closes[0] else "负向"
+    return {
+        "value": volatility,
+        "direction": direction,
+        "change_count": int(np.sum(np.diff(closes) != 0))
+    }
+
+def calculate_crossovers(macd, signal):
+    crossovers = int(np.sum((macd[:-1] <= signal[:-1]) & (macd[1:] > signal[1:]) |
+                            (macd[:-1] >= signal[:-1]) & (macd[1:] < signal[1:])))
+    return {
+        "total": crossovers,
+        "last_3": [crossovers for _ in range(3)]  # 这里需要实际计算最后3次的交叉
+    }
+
+def calculate_td9(highs, lows, closes):
+    setup = np.zeros(len(closes))
+    countdown = np.zeros(len(closes))
+    setup_direction = 0
+    countdown_direction = 0
+    
+    for i in range(4, len(closes)):
+        # Setup phase
+        if closes[i] > closes[i-4]:
+            if setup_direction <= 0:
+                setup_direction = 1
+                setup[i] = 1
+            else:
+                setup[i] = min(setup[i-1] + 1, 9)
+        elif closes[i] < closes[i-4]:
+            if setup_direction >= 0:
+                setup_direction = -1
+                setup[i] = -1
+            else:
+                setup[i] = max(setup[i-1] - 1, -9)
+        else:
+            setup[i] = setup[i-1]
+        
+        # Countdown phase
+        if abs(setup[i-1]) == 9:
+            if setup[i-1] > 0 and lows[i] <= lows[i-2]:
+                countdown[i] = countdown[i-1] + 1
+                countdown_direction = 1
+            elif setup[i-1] < 0 and highs[i] >= highs[i-2]:
+                countdown[i] = countdown[i-1] - 1
+                countdown_direction = -1
+            else:
+                countdown[i] = countdown[i-1]
+        else:
+            countdown[i] = countdown[i-1]
+    
+    current_setup = int(setup[-1])
+    current_countdown = int(abs(countdown[-1]))
+    
+    return {
+        "setup": current_setup,
+        "countdown": current_countdown,
+        "setup_direction": "买入" if current_setup > 0 else "卖出" if current_setup < 0 else "中性",
+        "countdown_direction": "买入" if countdown_direction > 0 else "卖出" if countdown_direction < 0 else "中性"
     }
 
 def get_kline_data(client, symbol, interval, limit):
@@ -158,28 +190,31 @@ def get_ai_suggestion(statistics):
     prompt = f"""
 作为一位资深的加密货币交易分析师和策略师，请用中文回复，请根据以下{statistics['symbol']}交易对的详细技术指标和统计数据，提供一个全面而专业的交易分析和建议：
 
-1. 多周期均线分析：
-   - 日线EMA22上方比例：{statistics['above_ema22_daily']}
-   - 日线EMA200上方比例：{statistics['above_ema200_daily']}
-   - 4小时EMA22上方比例：{statistics['above_ema22_4h']}
-   - 1小时EMA22上方比例：{statistics['above_ema22_1h']}
+1. 交易对: {statistics['symbol']} 当前价格: {statistics['current_price']}
 
-2. 大周期位置判断：
-   - 相对周线开盘价位置：{statistics['weekly_position']}
-   - 相对月线开盘价位置：{statistics['monthly_position']}
+2. 多周期均线分析：
+   - 日线EMA22上方比例：{statistics['above_ema22']['1d']:.2%}
+   - 日线EMA200上方比例：{statistics['above_ema200_daily']:.2%}
+   - 4小时EMA22上方比例：{statistics['above_ema22']['4h']:.2%}
+   - 1小时EMA22上方比例：{statistics['above_ema22']['1h']:.2%}
 
-3. 短周期EMA22穿越情况：
-   {statistics['above_ema22']}
+3. 大周期位置判断：
+   - 相对周线开盘价位置：{statistics['weekly_position']:.2f}%
+   - 相对月线开盘价位置：{statistics['monthly_position']:.2f}%
 
-4. 短周期市场波动性：
-   - 1分钟K线波动性：{statistics['one_min_volatility']}
-   - 5分钟K线波动性：{statistics['five_min_volatility']}
+4. 短周期EMA22穿越情况：
+   {', '.join([f"{k}: {'是' if v else '否'}" for k, v in statistics['current_price_above_ema22'].items()])}
 
-5. 中期趋势指标：
-   15分钟MACD和EMA交叉情况：{statistics['fifteen_min_crossovers']}
+5. 短周期市场波动性：
+   - 1分钟K线波动性：{statistics['volatility']['1m']['value']:.6f}，方向：{statistics['volatility']['1m']['direction']}，变化次数：{statistics['volatility']['1m']['change_count']}
+   - 5分钟K线波动性：{statistics['volatility']['5m']['value']:.6f}，方向：{statistics['volatility']['5m']['direction']}，变化次数：{statistics['volatility']['5m']['change_count']}
 
-6. 多周期EMA22价格关系：
-   {statistics['current_price_above_ema22']}
+6. 15分钟MACD交叉情况：
+   总交叉次数：{statistics['fifteen_min_crossovers']['total']}
+   最近三次交叉：{', '.join(map(str, statistics['fifteen_min_crossovers']['last_3']))}
+
+7. TD9指标情况：
+   {', '.join([f"{k}: Setup {v['setup']} ({v['setup_direction']}), Countdown {v['countdown']} ({v['countdown_direction']})" for k, v in statistics['td9'].items()])}
 
 基于以上数据，请提供以下深入分析和建议：
 
@@ -188,11 +223,14 @@ def get_ai_suggestion(statistics):
 3. 动量和波动性分析
 4. 交易机会识别
 5. 风险管理建议
-6. 具体的交易策略建议
-7. 技术指标组合分析
-8. 市场情绪和潜在催化剂
+6. 具体的交易策略建议，包括：
+   - 3-10倍杠杆的建议
+   - 每种杠杆的止盈止损点
+   - 当前盈亏比分析
+   - 当前K线状态评估
+7. 技术指标组合分析，特别关注TD9指标在不同时间周期的表现
 
-请确保您的所有回复内容都是中文，这个非常重要，分析全面、深入且具有可操作性，一定要使用用中文来回复，同时考虑到不同投资风格和风险承受能力的交易者。您的建议应该既专业又易于理解，并强调风险管理的重要性。
+请确保您的所有回复内容都是中文，分析全面、深入且具有可操作性。同时考虑到不同投资风格和风险承受能力的交易者。您的建议应该既专业又易于理解，并强调风险管理的重要性。
 """
 
     headers = {
@@ -215,6 +253,3 @@ def get_ai_suggestion(statistics):
         return response.json()['choices'][0]['message']['content']
     else:
         return f"获取AI建议时出错: {response.status_code} - {response.text}"
-
-# 将此Blueprint添加到您的Flask应用中
-# app.register_blueprint(get_statistics_with_ai_bp)

@@ -1,80 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}AI 分析统计{% endblock %}
+{% block title %}超级AI 分析统计{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f5f5f5;
-        color: #333;
-    }
-    .container {
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        padding: 2rem;
-        margin-top: 2rem;
-    }
-    h1, h2, h3 {
-        color: #2c3e50;
-    }
-    .form-control, .btn {
+    /* 保留原有的样式 */
+    /* ... */
+    .ai-suggestion {
+        background-color: #e8f4fd;
+        border-left: 5px solid #3498db;
+        padding: 1rem;
+        margin-top: 1rem;
         border-radius: 4px;
     }
-    .btn-primary {
-        background-color: #3498db;
-        border-color: #3498db;
-    }
-    .btn-primary:hover {
-        background-color: #2980b9;
-        border-color: #2980b9;
-    }
-    .loading {
-        display: none;
-        color: #3498db;
-    }
-    .statistics-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        border: 1px solid #e0e0e0;
+    .td9-info {
+        background-color: #fcf8e3;
+        border-left: 5px solid #f0ad4e;
+        padding: 1rem;
+        margin-top: 1rem;
         border-radius: 4px;
-        overflow: hidden;
-    }
-    .statistics-table th,
-    .statistics-table td {
-        padding: 0.75rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    .statistics-table th {
-        background-color: #f8f9fa;
-        font-weight: 600;
-        text-align: left;
-    }
-    .statistics-table tr:last-child td {
-        border-bottom: none;
-    }
-    .alert {
-        border-radius: 4px;
-    }
-    .pagination {
-        justify-content: center;
-    }
-    .pagination .page-link {
-        color: #3498db;
-    }
-    .pagination .page-item.active .page-link {
-        background-color: #3498db;
-        border-color: #3498db;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1 class="mb-4">AI 分析统计</h1>
+    <h1 class="mb-4">超级AI 分析统计</h1>
     
     {% if not binance_keys %}
     <div class="alert alert-warning" role="alert">
@@ -90,14 +42,14 @@
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn-primary">分析</button>
+        <button type="submit" class="btn btn-primary">超级AI分析</button>
     </form>
 
     <div class="loading mt-3">
         <div class="spinner-border" role="status">
-            <span class="sr-only">加载中...</span>
+            <span class="sr-only">超级AI正在分析，请稍候...</span>
         </div>
-        <span class="ml-2">正在分析，请稍候...</span>
+        <span class="ml-2">超级AI正在进行深度分析，请稍候...</span>
     </div>
 
     <div id="result" class="mt-4"></div>
@@ -129,11 +81,11 @@
                 success: function(response) {
                     $('.loading').hide();
                     if (response.success) {
-                        let resultHtml = '<h2 class="mt-4">分析结果</h2>';
+                        let resultHtml = '<h2 class="mt-4">超级AI分析结果</h2>';
                         resultHtml += '<h3 class="mt-3">统计数据</h3>';
                         resultHtml += formatStatistics(response.statistics);
-                        resultHtml += '<h3 class="mt-4">AI 建议</h3>';
-                        resultHtml += '<p>' + response.ai_suggestion.replace(/\n/g, '<br>') + '</p>';
+                        resultHtml += '<h3 class="mt-4">超级AI 建议</h3>';
+                        resultHtml += '<div class="ai-suggestion">' + response.ai_suggestion.replace(/\n/g, '<br>') + '</div>';
                         $('#result').html(resultHtml);
                     } else {
                         $('#result').html('<div class="alert alert-danger">' + response.error + '</div>');
@@ -151,23 +103,25 @@
             html += '<tr><th>指标</th><th>值</th></tr>';
             
             html += `<tr><td>交易对</td><td>${statistics.symbol}</td></tr>`;
-            html += `<tr><td>日线EMA22上方比例</td><td>${(statistics.above_ema22_daily * 100).toFixed(2)}%</td></tr>`;
-            html += `<tr><td>日线EMA200上方比例</td><td>${(statistics.above_ema200_daily * 100).toFixed(2)}%</td></tr>`;
-            html += `<tr><td>4小时EMA22上方比例</td><td>${(statistics.above_ema22_4h * 100).toFixed(2)}%</td></tr>`;
-            html += `<tr><td>1小时EMA22上方比例</td><td>${(statistics.above_ema22_1h * 100).toFixed(2)}%</td></tr>`;
-            html += `<tr><td>相对周线开盘价位置</td><td>${(statistics.weekly_position * 100).toFixed(2)}%</td></tr>`;
-            html += `<tr><td>相对月线开盘价位置</td><td>${(statistics.monthly_position * 100).toFixed(2)}%</td></tr>`;
+            html += `<tr><td>当前价格</td><td>${statistics.current_price}</td></tr>`;
             
-            html += '<tr><td>短周期EMA22穿越情况</td><td>';
-            for (let [key, value] of Object.entries(statistics.above_ema22)) {
-                html += `${key}: ${value ? '上方' : '下方'}<br>`;
+            // EMA 数据
+            for (let [interval, value] of Object.entries(statistics.above_ema22)) {
+                html += `<tr><td>${interval} EMA22上方比例</td><td>${(value * 100).toFixed(2)}%</td></tr>`;
             }
-            html += '</td></tr>';
+            html += `<tr><td>日线EMA200上方比例</td><td>${(statistics.above_ema200_daily * 100).toFixed(2)}%</td></tr>`;
+            
+            html += `<tr><td>相对周线开盘价位置</td><td>${statistics.weekly_position.toFixed(2)}%</td></tr>`;
+            html += `<tr><td>相对月线开盘价位置</td><td>${statistics.monthly_position.toFixed(2)}%</td></tr>`;
+            
+            // 波动性数据
+            html += `<tr><td>1分钟K线波动性</td><td>${statistics.volatility['1m'].value.toFixed(6)} (${statistics.volatility['1m'].direction}, 变化次数: ${statistics.volatility['1m'].change_count})</td></tr>`;
+            html += `<tr><td>5分钟K线波动性</td><td>${statistics.volatility['5m'].value.toFixed(6)} (${statistics.volatility['5m'].direction}, 变化次数: ${statistics.volatility['5m'].change_count})</td></tr>`;
+            
+            // MACD交叉情况
+            html += `<tr><td>15分钟MACD交叉次数</td><td>总计: ${statistics.fifteen_min_crossovers.total}, 最近三次: ${statistics.fifteen_min_crossovers.last_3.join(', ')}</td></tr>`;
 
-            html += `<tr><td>1分钟K线波动性</td><td>${statistics.one_min_volatility.toFixed(6)}</td></tr>`;
-            html += `<tr><td>5分钟K线波动性</td><td>${statistics.five_min_volatility.toFixed(6)}</td></tr>`;
-            html += `<tr><td>15分钟MACD交叉次数</td><td>${statistics.fifteen_min_crossovers}</td></tr>`;
-
+            // 当前价格相对EMA22位置
             html += '<tr><td>当前价格相对EMA22位置</td><td>';
             for (let [key, value] of Object.entries(statistics.current_price_above_ema22)) {
                 html += `${key}: ${value ? '上方' : '下方'}<br>`;
@@ -175,6 +129,15 @@
             html += '</td></tr>';
 
             html += '</table>';
+
+            // TD9 信息
+            html += '<h3 class="mt-4">TD9 指标</h3>';
+            html += '<div class="td9-info">';
+            for (let [interval, data] of Object.entries(statistics.td9)) {
+                html += `<p><strong>${interval}:</strong> Setup ${data.setup} (${data.setup_direction}), Countdown ${data.countdown} (${data.countdown_direction})</p>`;
+            }
+            html += '</div>';
+
             return html;
         }
     });

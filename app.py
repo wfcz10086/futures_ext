@@ -51,6 +51,8 @@ app.register_blueprint(get_statistics_all_bp)
 app.register_blueprint(altcoin_season_bp)
 from get_statistics_with_ai import get_statistics_with_ai_bp
 app.register_blueprint(get_statistics_with_ai_bp)
+from fund_flow import fund_flow_bp
+app.register_blueprint(fund_flow_bp)
 
 @app.route('/')
 def index():
