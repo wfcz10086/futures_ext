@@ -13,7 +13,7 @@ get_statistics_with_ai_bp = Blueprint('get_statistics_with_ai', __name__)
 
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 NVIDIA_API_KEY = "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"
-
+#请注意上面这个api去官方获取
 @get_statistics_with_ai_bp.route('/get_statistics_with_ai_page', methods=['GET'])
 @login_required
 def get_statistics_with_ai_page():
@@ -224,13 +224,13 @@ def get_ai_suggestion(statistics):
 4. 交易机会识别
 5. 风险管理建议
 6. 具体的交易策略建议，包括：
-   - 3-10倍杠杆的建议
-   - 每种杠杆的止盈止损点
-   - 当前盈亏比分析
-   - 当前K线状态评估
-7. 技术指标组合分析，特别关注TD9指标在不同时间周期的表现
+   - 3-10倍杠杆的做空做多建议
+   - 每种做空做空的杠杆的止盈止损点
+   - 当前盈亏比分析，是做空还是做多
+   - 当前K线状态评估，是做多还是做空
+7. 技术指标组合分析，特别关注TD9指标在不同时间周期的表现，
 
-请确保您的所有回复内容都是中文，分析全面、深入且具有可操作性。同时考虑到不同投资风格和风险承受能力的交易者。您的建议应该既专业又易于理解，并强调风险管理的重要性。
+请确保您的所有回复内容都是中文，建议需要详细，不能摸棱两可，到底是涨还是跌,分析全面、深入且具有可操作性。同时考虑到不同投资风格和风险承受能力的交易者。您的建议应该既专业又易于理解，并强调风险管理的重要性。
 """
 
     headers = {

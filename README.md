@@ -1,24 +1,48 @@
 # 天天吃饱饭
 
-这是一个基于 Flask 的期货交易精细化系统，集成了 Binance API，提供了数据分析、盈利管理、仓位管理、模拟仓位等功能。
+这是一个基于 Flask 的期货交易精细化系统，集成了 Binance API，提供了AI分析、交易对分析、数据分析、盈利管理、仓位管理等功能，提供1-10倍的合约管理。
 
 ## 功能特性
 
 - 用户认证
-- 期货交易对查询
+- 山寨季分析
+- 期货交易对AI分析
+- 做空还多AI分析
 - K线数据获取
 - 订单管理（创建、查看、修改）
 - 挂单管理
 - 止盈止损设置
 - 仓位管理
-- 交易统计
+- EMA22 多周期共振
 
-## 主要依赖库
+## 定制联系
+![定制联系](img/联系.jpg)
+
+
+### AI 分析
+![AI 分析](img/ai.png)
+![AI 分析1](img/ai分析1.png)
+![AI 分析2](img/ai分析2.png)
+
+### 下单管理
+![下单管理](img/下单管理.png)
+
+### 交易对分析
+![交易对分析](img/交易对分析.png)
+
+### 山寨季
+![山寨季](img/山寨季.png)
+
+### 仙人指路
+![仙人指路](img/仙人指路.png)
+
+## 主要依赖库 必读
 
 - Flask: Web 应用框架
-- Flask-SQLAlchemy: 数据库 ORM
-- PyMySQL: MySQL 数据库连接器
+- Flask-SQLAlchemy: 数据库 ORM,创建好qihuo库
+- PyMySQL: MySQL 数据库连接器 记住修改app.py app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:10086@127.0.0.1:3306/qihuo'
 - Binance API: 用于与 Binance 交易所交互
+- 相关ai功能需要注册，https://build.nvidia.com/explore/discover#llama3-70b 免费替换的，直接替换 get_statistics_with_ai.py NVIDIA_API_KEY
 
 详细的依赖列表请参考 `requirements.txt` 文件。
 
@@ -59,8 +83,6 @@
 ├── position_management.py    # 仓位管理功能
 ├── README.md                 # 项目说明文档
 ├── requirements.txt          # 项目依赖列表
-├── run.sh                    # 运行脚本
-├── setup_数据分析.sh          # 数据分析设置脚本
 ├── take_profit_stop_loss.py  # 止盈止损设置
 └── templates/                # HTML 模板目录
 ```

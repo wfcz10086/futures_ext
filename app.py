@@ -6,7 +6,8 @@ from waitress import serve
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:10086@10.0.0.5:3306/qihuo'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:admin@10.0.0.5:3306/qihuo'
+#请请改相关=数据库密码
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['CACHE_TYPE'] = 'simple'
 
